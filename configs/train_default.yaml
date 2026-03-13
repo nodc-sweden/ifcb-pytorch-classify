@@ -1,0 +1,44 @@
+data_dir: training_data/V1
+dataset_version: V1
+val_split: 0.2
+
+image_width: 224
+image_height: 224
+transform: dataset_squarepad_augmented
+
+model: resnet50
+pretrained: true
+
+lr: 0.0001
+batch_size: 64
+epochs: 20
+num_workers: 0
+seed: 42
+
+output_dir: output
+checkpoint_metric: weighted_f1
+tracker: csv
+
+# Uncomment to enable MLflow or W&B:
+# tracker: mlflow
+# mlflow_uri: http://localhost:5000
+# tracker: wandb
+# wandb_project: ifcb-classify
+
+# Uncomment for normalised transforms (run `ifcb-classify normalise` first):
+# mean: 0.7019
+# std: 0.1496
+
+# Uncomment to filter classes with fewer than N images:
+# min_class_images: 50
+# manual_include_classes:
+#   - Dinophysis_caudata
+#   - Dinophysis_acuta
+
+# Uncomment for hyperparameter sweep:
+# sweep_params:
+#   lr: [0.001, 0.0001]
+#   batch_size: [64]
+#   model: [resnet50]
+#   transform: [dataset_squarepad, dataset_fullpad]
+#   epochs: [5]

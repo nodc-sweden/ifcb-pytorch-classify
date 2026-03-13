@@ -1,0 +1,1 @@
+"""IFCB image classification pipeline."""

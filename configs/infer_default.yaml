@@ -1,0 +1,13 @@
+input_path: /path/to/bins
+model_checkpoint: /path/to/model_best.pt
+output_dir: output/class_scores
+batch_size: 64
+threshold_default: 0.0
+device: auto
+overwrite: false
+
+# Optional per-class thresholds file:
+# thresholds_path: configs/thresholds.yaml
+
+# Optional classifier name (defaults to model_version):
+# classifier_name: "IFCB ResNet50 V1"

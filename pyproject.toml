@@ -1,0 +1,49 @@
+[project]
+name = "ifcb-classify"
+version = "0.1.0"
+description = "Production pipeline for IFCB image classification using PyTorch"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "torcheval>=0.0.7",
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scikit-learn>=1.2",
+    "Pillow>=10.0",
+    "opencv-python>=4.8",
+    "h5py>=3.9",
+    "pyyaml>=6.0",
+    "pyifcb @ git+https://github.com/joefutrelle/pyifcb",
+]
+
+[project.optional-dependencies]
+mlflow = ["mlflow>=2.0"]
+wandb = ["wandb>=0.15"]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+ifcb-classify = "ifcb_classify.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ifcb_classify"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests that download model weights",
+]
