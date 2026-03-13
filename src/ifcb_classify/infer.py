@@ -41,7 +41,7 @@ def infer_main(config: InferConfig) -> None:
     )
 
     thresholds = _load_thresholds(config, class_names)
-    classifier_name = config.classifier_name or f"{train_config['model']}_{train_config.get('dataset_version', '')}"
+    classifier_name = config.classifier_name or _derive_classifier_name(config, train_config)
 
     output_dir = Path(config.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -130,20 +130,38 @@ def _batch_predict(model, images, device, batch_size):
 
 
 def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds):
-    scores_t = scores.T
-    roi_numbers = np.array(target_numbers, dtype=np.int64)
+    roi_numbers = np.array(target_numbers, dtype=np.int32)
     output_path = _output_path_for_lid(output_dir, lid)
-    write_class_scores(output_path, scores_t, class_names, roi_numbers, classifier_name, thresholds)
+    write_class_scores(output_path, scores, class_names, roi_numbers, classifier_name, thresholds)
     logger.info("Wrote: %s (%d ROIs)", output_path.name, len(target_numbers))
 
 
 def _load_thresholds(config: InferConfig, class_names: list[str]) -> np.ndarray:
-    if config.thresholds_path:
-        path = config.thresholds_path
+    path = config.thresholds_path
+
+    # Auto-detect thresholds.json from model directory
+    if not path:
+        model_dir = Path(config.model_checkpoint).parent
+        candidate = model_dir / "thresholds.json"
+        if candidate.exists():
+            logger.info("Auto-detected thresholds: %s", candidate)
+            path = str(candidate)
+
+    if path:
         if path.endswith(".json"):
             from ifcb_classify.thresholds import load_thresholds_json
             return load_thresholds_json(path, class_names)
         with open(path) as f:
             data = yaml.safe_load(f)
         return np.array([data.get(c, np.nan) for c in class_names], dtype=np.float64)
+
     return np.full(len(class_names), config.threshold_default, dtype=np.float64)
+
+
+def _derive_classifier_name(config: InferConfig, train_config: dict) -> str:
+    # For legacy checkpoints, use the model directory name
+    model_dir = Path(config.model_checkpoint).parent
+    dir_name = model_dir.name
+    if dir_name and dir_name != ".":
+        return dir_name
+    return f"{train_config['model']}_{train_config.get('dataset_version', '')}"

@@ -16,25 +16,25 @@ def write_class_scores(
 
     Args:
         output_path: Path for the .h5 file.
-        scores: Float64 array of shape (C, N) — classes x ROIs.
+        scores: Float64 array of shape (N, C) — ROIs x classes.
         class_labels: List of class names, length C.
         roi_numbers: Integer array of ROI target numbers, length N.
         classifier_name: Name of the classifier model.
         thresholds: Float64 array of per-class thresholds, length C. Use NaN where not set.
     """
-    n_classes, n_rois = scores.shape
+    n_rois, n_classes = scores.shape
     assert len(class_labels) == n_classes
     assert len(roi_numbers) == n_rois
     assert len(thresholds) == n_classes
 
-    best_class_idx = np.argmax(scores, axis=0)
+    best_class_idx = np.argmax(scores, axis=1)
     class_name_auto = [class_labels[i] for i in best_class_idx]
 
     class_name = []
     for j in range(n_rois):
         idx = best_class_idx[j]
         threshold = thresholds[idx]
-        if np.isnan(threshold) or scores[idx, j] >= threshold:
+        if np.isnan(threshold) or scores[j, idx] >= threshold:
             class_name.append(class_labels[idx])
         else:
             class_name.append("unclassified")
@@ -44,8 +44,8 @@ def write_class_scores(
     with h5py.File(output_path, "w") as f:
         f.create_dataset("output_scores", data=scores.astype(np.float64))
         f.create_dataset("class_labels", data=class_labels, dtype=str_dtype)
-        f.create_dataset("roi_numbers", data=roi_numbers.astype(np.int64))
-        f.create_dataset("classifier_name", data=classifier_name, dtype=str_dtype)
+        f.create_dataset("roi_numbers", data=roi_numbers.astype(np.int32))
+        f.create_dataset("classifier_name", data=[classifier_name], dtype=str_dtype)
         f.create_dataset("class_name_auto", data=class_name_auto, dtype=str_dtype)
         f.create_dataset("class_name", data=class_name, dtype=str_dtype)
         f.create_dataset("thresholds", data=thresholds.astype(np.float64))
