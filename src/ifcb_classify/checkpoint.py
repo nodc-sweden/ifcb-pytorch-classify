@@ -52,5 +52,51 @@ class CheckpointManager:
         return True
 
 
-def load_checkpoint(path: str | Path) -> dict:
-    return torch.load(path, map_location="cpu", weights_only=False)
+def load_checkpoint(path: str | Path, model_name: str | None = None, classes_path: str | None = None) -> dict:
+    path = Path(path)
+    data = torch.load(path, map_location="cpu", weights_only=False)
+
+    # Our pipeline checkpoints have "state_dict" and "config" keys
+    if isinstance(data, dict) and "state_dict" in data and "config" in data:
+        return data
+
+    # Legacy checkpoint: raw state_dict (just weight tensors)
+    state_dict = data
+    class_names = _load_class_names(path, classes_path)
+    resolved_model = model_name or _guess_model_name(state_dict)
+
+    logger.info("Legacy checkpoint detected — model=%s, %d classes", resolved_model, len(class_names))
+
+    return {
+        "state_dict": state_dict,
+        "class_names": class_names,
+        "config": {
+            "model": resolved_model,
+            "image_width": 224,
+            "image_height": 224,
+            "transform": "dataset_squarepad",
+        },
+    }
+
+
+def _load_class_names(checkpoint_path: Path, classes_path: str | None) -> list[str]:
+    if classes_path:
+        p = Path(classes_path)
+    else:
+        p = checkpoint_path.parent / "classes.txt"
+
+    if not p.exists():
+        raise FileNotFoundError(
+            f"No classes.txt found at {p}. Supply --classes pointing to a class list file."
+        )
+
+    return [line.strip() for line in p.read_text().splitlines() if line.strip()]
+
+
+def _guess_model_name(state_dict: dict) -> str:
+    keys = set(state_dict.keys())
+    if any(k.startswith("layer4") for k in keys) and "fc.weight" in keys:
+        return "resnet50"
+    if any(k.startswith("features") for k in keys) and "classifier.1.weight" in keys:
+        return "efficientnet_b0"
+    return "resnet50"

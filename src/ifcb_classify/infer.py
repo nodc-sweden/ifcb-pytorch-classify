@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def infer_main(config: InferConfig) -> None:
-    checkpoint = load_checkpoint(config.model_checkpoint)
+    checkpoint = load_checkpoint(config.model_checkpoint, model_name=config.model_name, classes_path=config.classes_path)
     train_config = checkpoint["config"]
     class_names = checkpoint["class_names"]
     num_classes = len(class_names)

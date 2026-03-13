@@ -44,6 +44,8 @@ class InferConfig:
     device: str = "auto"
     classifier_name: str | None = None
     overwrite: bool = False
+    classes_path: str | None = None
+    model_name: str | None = None
 
 
 def load_config(yaml_path: str | Path, config_cls: type, overrides: dict | None = None):

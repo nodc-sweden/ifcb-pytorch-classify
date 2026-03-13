@@ -44,6 +44,8 @@ def build_parser() -> argparse.ArgumentParser:
     infer_parser.add_argument("--threshold-default", dest="threshold_default", type=float)
     infer_parser.add_argument("--device", choices=["auto", "cpu", "cuda"])
     infer_parser.add_argument("--classifier-name", dest="classifier_name")
+    infer_parser.add_argument("--classes", dest="classes_path", help="Path to classes.txt (auto-detected from model dir if not set)")
+    infer_parser.add_argument("--model-name", dest="model_name", help="Model architecture name for legacy checkpoints (e.g. resnet50)")
     infer_parser.add_argument("--overwrite", action="store_true", default=False, help="Overwrite existing output files (default: skip)")
     infer_parser.add_argument("-v", "--verbose", action="store_true")
 
