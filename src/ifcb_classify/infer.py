@@ -18,6 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 def infer_main(config: InferConfig) -> None:
+    input_path = Path(config.input_path)
+    output_dir = Path(config.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if not config.overwrite and not _has_pending_bins(input_path, output_dir):
+        logger.info("No new bins to classify — skipping model load")
+        return
+
     checkpoint = load_checkpoint(config.model_checkpoint, model_name=config.model_name, classes_path=config.classes_path)
     train_config = checkpoint["config"]
     class_names = checkpoint["class_names"]
@@ -43,16 +51,39 @@ def infer_main(config: InferConfig) -> None:
     thresholds = _load_thresholds(config, class_names)
     classifier_name = config.classifier_name or _derive_classifier_name(config, train_config)
 
-    output_dir = Path(config.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    input_path = Path(config.input_path)
     if input_path.is_file():
         _classify_bin_file(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite)
     elif input_path.is_dir():
         _classify_directory(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite)
     else:
         raise FileNotFoundError(f"Input path not found: {input_path}")
+
+
+def _has_pending_bins(input_path: Path, output_dir: Path) -> bool:
+    """Check whether there are any bins without corresponding output files.
+
+    For directories, builds a set of already-classified LIDs from the local
+    output directory (fast), then scans the input for .roi files that are
+    not in that set. Uses rglob to find bins in subdirectories.
+    """
+    if input_path.is_file():
+        lid = get_bin_lid(input_path)
+        return not _output_path_for_lid(output_dir, lid).exists()
+
+    if input_path.is_dir():
+        classified_lids = {
+            p.name.removesuffix("_class.h5")
+            for p in output_dir.glob("*_class.h5")
+        }
+        # Sort reverse so newest samples (by name, which encodes timestamp) are checked first
+        roi_files = sorted(input_path.rglob("*.roi"), reverse=True)
+        for roi_file in roi_files:
+            lid = get_bin_lid(roi_file)
+            if lid not in classified_lids:
+                return True
+        return False
+
+    return True
 
 
 def _output_path_for_lid(output_dir: Path, lid: str) -> Path:

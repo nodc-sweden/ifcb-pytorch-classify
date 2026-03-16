@@ -5,10 +5,10 @@ from ifcb_classify.hdf5_output import write_class_scores
 
 
 def test_write_class_scores(tmp_path):
-    n_classes, n_rois = 3, 10
-    scores = np.random.rand(n_classes, n_rois).astype(np.float64)
+    n_rois, n_classes = 10, 3
+    scores = np.random.rand(n_rois, n_classes).astype(np.float64)
     # Normalise to make them look like probabilities
-    scores /= scores.sum(axis=0, keepdims=True)
+    scores /= scores.sum(axis=1, keepdims=True)
     class_labels = ["ClassA", "ClassB", "ClassC"]
     roi_numbers = np.arange(1, n_rois + 1, dtype=np.int64)
     thresholds = np.array([0.5, 0.3, np.nan])
@@ -26,7 +26,7 @@ def test_write_class_scores(tmp_path):
             "class_name",
             "thresholds",
         }
-        assert f["output_scores"].shape == (n_classes, n_rois)
+        assert f["output_scores"].shape == (n_rois, n_classes)
         assert f["output_scores"].dtype == np.float64
         assert len(f["class_labels"]) == n_classes
         assert len(f["roi_numbers"]) == n_rois

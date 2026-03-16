@@ -1,8 +1,8 @@
 [project]
 name = "ifcb-classify"
 version = "0.1.0"
-description = "Production pipeline for IFCB image classification using PyTorch"
-requires-python = ">=3.11"
+description = "Pipeline for IFCB image classification using PyTorch"
+requires-python = ">=3.11,<3.13"
 dependencies = [
     "torch>=2.0",
     "torchvision>=0.15",
@@ -14,7 +14,7 @@ dependencies = [
     "opencv-python>=4.8",
     "h5py>=3.9",
     "pyyaml>=6.0",
-    "pyifcb @ git+https://github.com/joefutrelle/pyifcb",
+    "pyifcb @ git+https://github.com/joefutrelle/pyifcb@v1.3.0",
 ]
 
 [project.optional-dependencies]
@@ -22,6 +22,7 @@ mlflow = ["mlflow>=2.0"]
 wandb = ["wandb>=0.15"]
 dev = [
     "pytest>=7.0",
+    "pytest-cov>=4.0",
     "ruff>=0.1",
 ]
 

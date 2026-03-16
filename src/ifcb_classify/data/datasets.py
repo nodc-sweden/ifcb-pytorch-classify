@@ -163,7 +163,14 @@ def filter_classes(
     for cls in filtered:
         src = data_path / cls
         dst = filtered_root / cls
-        os.symlink(src.resolve(), dst)
+        try:
+            os.symlink(src.resolve(), dst, target_is_directory=True)
+        except OSError:
+            # Windows without symlink privileges — hard-link individual files
+            dst.mkdir()
+            for img in src.iterdir():
+                if img.suffix.lower() in image_extensions:
+                    os.link(img, dst / img.name)
 
     return str(filtered_root), filtered
 

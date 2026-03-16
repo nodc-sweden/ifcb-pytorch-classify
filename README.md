@@ -1,18 +1,26 @@
 # SMHI IFCB Classify Pipeline
 
-Production pipeline for training and running inference on IFCB (Imaging FlowCytobot) plankton images using PyTorch.
+[![Test](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/test.yml/badge.svg)](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/test.yml)
+[![Lint](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/lint.yml/badge.svg)](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/lint.yml)
+[![codecov](https://codecov.io/gh/nodc-sweden/ifcb-pytorch-classify/graph/badge.svg)](https://codecov.io/gh/nodc-sweden/ifcb-pytorch-classify)
+[![Python 3.11–3.12](https://img.shields.io/badge/python-3.11%E2%80%933.12-blue)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
+Pipeline for training and running inference on IFCB (Imaging FlowCytobot) plankton images using PyTorch.
 
 ## Features
 
 - **Training** — Fine-tune 40+ pretrained architectures (ResNet, EfficientNet, ConvNeXt, Vision Transformers, etc.) on class-folder organised image datasets
 - **Inference** — Batch-classify raw IFCB bins (`.roi/.adc/.hdr`) via [pyifcb](https://github.com/joefutrelle/pyifcb) and output HDF5 files in IFCB Dashboard class_scores v3 format
 - **Experiment tracking** — CSV (default), MLflow, or Weights & Biases
-- **Config-driven** — YAML configs with CLI overrides for all parameters
 - **Device-flexible** — Auto-detects GPU for training, defaults to CPU for inference
 
 ## Installation
 
-Requires Python 3.11+ and PyTorch. Install PyTorch first following https://pytorch.org/get-started/locally/, then:
+Requires Python 3.11–3.12 and PyTorch.
+
+### CPU only
 
 ```bash
 uv venv
@@ -20,17 +28,22 @@ source .venv/bin/activate
 uv pip install -e .
 ```
 
-For experiment tracking extras:
+### With CUDA
+
+PyTorch from PyPI is CPU-only. To get CUDA support, install torch first from the [PyTorch wheel index](https://pytorch.org/get-started/locally/) for your CUDA version, then install the package:
+
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126  # adjust to your CUDA version
+uv pip install -e .
+```
+### Optional extras
 
 ```bash
 uv pip install -e ".[mlflow]"   # MLflow support
 uv pip install -e ".[wandb]"    # Weights & Biases support
-```
-
-For development:
-
-```bash
-uv pip install -e ".[dev]"
+uv pip install -e ".[dev]"      # Development tools
 ```
 
 ## Usage
@@ -52,15 +65,15 @@ Training data should be organised in class folders:
 
 ```
 training_data/V1/
-  Asterionellopsis/
-  Chaetoceros/
-  Dinophysis/
+  Asterionellopsis_glacialis/
+  Dactyliosolen_fragilissimus/
+  Dinophysis_acuminata/
   ...
 ```
 
 ### Inference
 
-On a directory of raw IFCB bins:
+On a directory of raw IFCB bins (`.roi/.adc/.hdr`):
 
 ```bash
 python -m ifcb_classify infer \
@@ -75,7 +88,7 @@ Or with a config file:
 python -m ifcb_classify infer --config configs/infer_default.yaml
 ```
 
-Output is one `{sample}_class.h5` file per bin, compatible with the IFCB Dashboard.
+Output is one `{sample}_class.h5` file per bin, compatible with the IFCB Dashboard, [iRfcb](https://europeanifcbgroup.github.io/iRfcb/) and [ClassiPyR](https://europeanifcbgroup.github.io/ClassiPyR/).
 
 ### Dataset normalisation
 
@@ -92,12 +105,30 @@ See `configs/train_default.yaml` and `configs/infer_default.yaml` for all availa
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `model` | `resnet50` | Model architecture (see `src/ifcb_classify/models/registry.py` for full list) |
-| `transform` | `dataset_squarepad` | Image preprocessing pipeline |
+| `transform` | `dataset_squarepad_augmented` | Image preprocessing pipeline |
 | `lr` | `0.0001` | Learning rate |
 | `batch_size` | `64` | Batch size |
 | `epochs` | `20` | Number of training epochs |
 | `checkpoint_metric` | `weighted_f1` | Metric used for best-model checkpointing |
 | `tracker` | `csv` | Experiment tracker (`csv`, `mlflow`, `wandb`, `none`) |
+
+### Date placeholders
+
+Path values in YAML configs support date placeholders that are expanded at load time (UTC). This is useful for continuous inference pipelines where input/output directories are organised by date.
+
+| Placeholder | Example value | Description |
+|-------------|---------------|-------------|
+| `{year}` | `2026` | Four-digit year |
+| `{month}` | `03` | Zero-padded month |
+| `{day}` | `14` | Zero-padded day |
+| `{date}` | `20260314` | Combined `YYYYMMDD` |
+
+Example `infer.yaml`:
+
+```yaml
+input_path: /ifcb/data/{year}
+output_dir: /ifcb/output/{year}
+```
 
 ## Project structure
 
