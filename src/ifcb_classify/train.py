@@ -154,6 +154,7 @@ def _train_epoch(model, loader, loss_fn, optimizer, device, model_name):
 
     for images, labels in loader:
         images, labels = images.to(device), labels.to(device)
+        optimizer.zero_grad(set_to_none=True)
 
         if model_name == "inception_v3":
             preds, _ = model(images)
@@ -163,12 +164,13 @@ def _train_epoch(model, loader, loss_fn, optimizer, device, model_name):
         loss = loss_fn(preds, labels)
         loss.backward()
         optimizer.step()
-        optimizer.zero_grad()
 
         total_loss += loss.item()
         correct += preds.argmax(dim=1).eq(labels).sum().item()
         total += labels.size(0)
 
+    if total == 0:
+        return 0.0, 0.0
     return total_loss / len(loader), correct / total
 
 
@@ -187,6 +189,8 @@ def _validate_epoch(model, loader, loss_fn, device, metrics_calc):
             total += labels.size(0)
             metrics_calc.update(preds, labels)
 
+    if total == 0:
+        return 0.0, 0.0
     return total_loss / len(loader), correct / total
 
 

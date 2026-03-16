@@ -7,8 +7,11 @@ threshold_default: 0.0
 device: auto
 overwrite: false
 
-# Optional per-class thresholds file:
-# thresholds_path: configs/thresholds.yaml
+# Limit CPU threads for inference (default: use all available cores):
+# num_threads: 4
+
+# Optional per-class thresholds file (.json from training output, or .yaml with class: threshold pairs):
+# thresholds_path: output/run1_thresholds_and_metrics.json
 
 # Optional classifier name (defaults to model_version):
 # classifier_name: "IFCB ResNet50 V1"

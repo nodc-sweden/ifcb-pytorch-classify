@@ -43,6 +43,18 @@ class TrainConfig:
     min_class_images: int | None = None
     manual_include_classes: list[str] | None = None
 
+    def __post_init__(self):
+        if not (0.0 < self.val_split < 1.0):
+            raise ValueError(f"val_split must be between 0 and 1 exclusive, got {self.val_split}")
+        if self.lr <= 0:
+            raise ValueError(f"lr must be positive, got {self.lr}")
+        if self.batch_size < 1:
+            raise ValueError(f"batch_size must be >= 1, got {self.batch_size}")
+        if self.epochs < 1:
+            raise ValueError(f"epochs must be >= 1, got {self.epochs}")
+        if self.image_width < 1 or self.image_height < 1:
+            raise ValueError(f"image dimensions must be positive, got {self.image_width}x{self.image_height}")
+
 
 @dataclass(frozen=True)
 class InferConfig:
@@ -58,6 +70,13 @@ class InferConfig:
     overwrite: bool = False
     classes_path: str | None = None
     model_name: str | None = None
+    num_threads: int | None = None
+
+    def __post_init__(self):
+        if self.batch_size < 1:
+            raise ValueError(f"batch_size must be >= 1, got {self.batch_size}")
+        if self.num_threads is not None and self.num_threads < 1:
+            raise ValueError(f"num_threads must be >= 1, got {self.num_threads}")
 
 
 def load_config(yaml_path: str | Path, config_cls: type, overrides: dict | None = None):

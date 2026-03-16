@@ -1,3 +1,4 @@
+import os
 import tempfile
 
 import numpy as np
@@ -24,7 +25,11 @@ class MlflowTracker:
         df = pd.DataFrame(cm, index=class_names, columns=class_names)
         with tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="w") as f:
             df.to_csv(f)
-            self._mlflow.log_artifact(f.name, artifact_path=f"confusion_matrices/epoch_{step}")
+            tmp_path = f.name
+        try:
+            self._mlflow.log_artifact(tmp_path, artifact_path=f"confusion_matrices/epoch_{step}")
+        finally:
+            os.unlink(tmp_path)
 
     def end_run(self) -> None:
         self._mlflow.end_run()
