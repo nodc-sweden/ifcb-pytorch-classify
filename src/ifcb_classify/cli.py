@@ -30,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument("--wandb-project", dest="wandb_project")
     train_parser.add_argument("--experiment-name", dest="experiment_name")
     train_parser.add_argument("--min-class-images", dest="min_class_images", type=int, help="Exclude classes with fewer images")
+    train_parser.add_argument("--plots", action="store_true", default=None, help="Generate evaluation plots after training")
     train_parser.add_argument("-v", "--verbose", action="store_true")
 
     # --- infer ---

@@ -42,6 +42,7 @@ class TrainConfig:
     sweep_params: dict | None = None
     min_class_images: int | None = None
     manual_include_classes: list[str] | None = None
+    plots: bool = False
 
     def __post_init__(self):
         if not (0.0 < self.val_split < 1.0):

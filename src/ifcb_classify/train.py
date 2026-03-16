@@ -13,6 +13,7 @@ from ifcb_classify.models.factory import get_model
 from ifcb_classify.seed import set_seed
 from ifcb_classify.sweep import generate_sweep_runs
 from ifcb_classify.thresholds import compute_optimal_thresholds, save_thresholds_and_metrics
+from ifcb_classify.plots import generate_evaluation_plots
 from ifcb_classify.tracking import create_tracker
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,10 @@ def _train_run(config: TrainConfig, device: torch.device, run_name: str, run_par
 
     tracker.begin_run(run_name, run_params)
 
+    all_epoch_metrics: list[dict] = []
+    best_class_metrics: dict | None = None
+    best_confusion_matrix = None
+
     for epoch in range(1, config.epochs + 1):
         train_loss, train_acc = _train_epoch(model, train_loader, loss_fn, optimizer, device, config.model)
         val_loss, val_acc = _validate_epoch(model, val_loader, loss_fn, device, metrics_calc)
@@ -115,6 +120,7 @@ def _train_run(config: TrainConfig, device: torch.device, run_name: str, run_par
             "auroc": results.auroc,
         }
 
+        all_epoch_metrics.append(log_data)
         tracker.log_metrics(log_data, step=epoch)
         tracker.log_confusion_matrix(results.confusion_matrix.numpy(), class_names, step=epoch)
 
@@ -127,6 +133,8 @@ def _train_run(config: TrainConfig, device: torch.device, run_name: str, run_par
             logger.info("Computing per-class optimal thresholds...")
             thresholds, class_metrics = compute_optimal_thresholds(model, val_loader, device, class_names)
             save_thresholds_and_metrics(config.output_dir, run_name, epoch, class_names, thresholds, class_metrics)
+            best_class_metrics = class_metrics
+            best_confusion_matrix = results.confusion_matrix.numpy()
 
         logger.info(
             "Epoch %d/%d — train_loss=%.4f, val_loss=%.4f, %s=%.4f%s",
@@ -140,6 +148,17 @@ def _train_run(config: TrainConfig, device: torch.device, run_name: str, run_par
         )
 
         metrics_calc.reset()
+
+    if config.plots and best_confusion_matrix is not None:
+        logger.info("Generating evaluation plots...")
+        generate_evaluation_plots(
+            output_dir=config.output_dir,
+            run_name=run_name,
+            epoch_metrics=all_epoch_metrics,
+            confusion_matrix=best_confusion_matrix,
+            class_names=class_names,
+            class_metrics=best_class_metrics,
+        )
 
     tracker.end_run()
     torch.cuda.empty_cache()
