@@ -38,7 +38,7 @@ def get_model(name: str, num_classes: int) -> nn.Module:
     if name == "custom":
         return _build_custom(num_classes)
 
-    spec = MODELS.get(name)
+    spec = MODELS.get(name) or MODELS.get(name.lower())
     if spec is None:
         raise ValueError(f"Unknown model: {name}. Available: {sorted(MODELS.keys())}")
 

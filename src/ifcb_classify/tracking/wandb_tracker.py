@@ -15,11 +15,19 @@ class WandbTracker:
         self._wandb.log(metrics, step=step)
 
     def log_confusion_matrix(self, cm: np.ndarray, class_names: list[str], step: int) -> None:
+        y_true = []
+        y_pred = []
+        for true_idx in range(cm.shape[0]):
+            for pred_idx in range(cm.shape[1]):
+                count = int(cm[true_idx, pred_idx])
+                y_true.extend([true_idx] * count)
+                y_pred.extend([pred_idx] * count)
+
         self._wandb.log({
             f"confusion_matrix_epoch_{step}": self._wandb.plot.confusion_matrix(
                 probs=None,
-                y_true=None,
-                preds=None,
+                y_true=y_true,
+                preds=y_pred,
                 class_names=class_names,
             )
         })

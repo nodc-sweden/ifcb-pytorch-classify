@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+import pytest
 import yaml
 
 from ifcb_classify.config import TrainConfig, InferConfig, load_config
@@ -57,3 +58,38 @@ def test_date_placeholder_month_day(tmp_path):
     config = load_config(yaml_path, TrainConfig)
     now = datetime.now(timezone.utc)
     assert config.data_dir == f"/data/{now:%Y}/{now:%m}/{now:%d}"
+
+
+def test_train_config_invalid_val_split():
+    with pytest.raises(ValueError, match="val_split"):
+        TrainConfig(val_split=0.0)
+
+
+def test_train_config_invalid_val_split_above_one():
+    with pytest.raises(ValueError, match="val_split"):
+        TrainConfig(val_split=1.0)
+
+
+def test_train_config_negative_lr():
+    with pytest.raises(ValueError, match="lr"):
+        TrainConfig(lr=-0.001)
+
+
+def test_train_config_zero_batch_size():
+    with pytest.raises(ValueError, match="batch_size"):
+        TrainConfig(batch_size=0)
+
+
+def test_train_config_zero_epochs():
+    with pytest.raises(ValueError, match="epochs"):
+        TrainConfig(epochs=0)
+
+
+def test_train_config_negative_image_dims():
+    with pytest.raises(ValueError, match="image dimensions"):
+        TrainConfig(image_width=0, image_height=224)
+
+
+def test_infer_config_zero_batch_size():
+    with pytest.raises(ValueError, match="batch_size"):
+        InferConfig(batch_size=0)

@@ -30,9 +30,9 @@ MODELS: dict[str, ModelSpec] = {
     "densenet161": ModelSpec(tv.densenet161, "classifier", 2208),
     "densenet201": ModelSpec(tv.densenet201, "classifier", 1920),
     # EfficientNetV2
-    "efficientnetV2_s": ModelSpec(tv.efficientnet_v2_s, "classifier[1]", 1280),
-    "efficientnetV2_m": ModelSpec(tv.efficientnet_v2_m, "classifier[1]", 1280),
-    "efficientnetV2_l": ModelSpec(tv.efficientnet_v2_l, "classifier[1]", 1280),
+    "efficientnet_v2_s": ModelSpec(tv.efficientnet_v2_s, "classifier[1]", 1280),
+    "efficientnet_v2_m": ModelSpec(tv.efficientnet_v2_m, "classifier[1]", 1280),
+    "efficientnet_v2_l": ModelSpec(tv.efficientnet_v2_l, "classifier[1]", 1280),
     # GoogLeNet
     "googlenet": ModelSpec(tv.googlenet, "fc", 1024),
     # Inception
@@ -44,10 +44,10 @@ MODELS: dict[str, ModelSpec] = {
     "mnasnet1_0": ModelSpec(tv.mnasnet1_0, "classifier[1]", 1280),
     "mnasnet1_3": ModelSpec(tv.mnasnet1_3, "classifier[1]", 1280),
     # MaxVit
-    "maxVit": ModelSpec(tv.maxvit_t, "classifier[5]", 512, bias=False),
+    "maxvit_t": ModelSpec(tv.maxvit_t, "classifier[5]", 512, bias=False),
     # MobileNetV3
-    "mobilenet_large": ModelSpec(tv.mobilenet_v3_large, "classifier[3]", 1280),
-    "mobilenet_small": ModelSpec(tv.mobilenet_v3_small, "classifier[3]", 1024),
+    "mobilenet_v3_large": ModelSpec(tv.mobilenet_v3_large, "classifier[3]", 1280),
+    "mobilenet_v3_small": ModelSpec(tv.mobilenet_v3_small, "classifier[3]", 1024),
     # ResNet
     "resnet18": ModelSpec(tv.resnet18, "fc", 512),
     "resnet34": ModelSpec(tv.resnet34, "fc", 512),
@@ -56,14 +56,13 @@ MODELS: dict[str, ModelSpec] = {
     "resnet152": ModelSpec(tv.resnet152, "fc", 2048),
     # ResNeXt
     "resnext50_32x4d": ModelSpec(tv.resnext50_32x4d, "fc", 2048),
-    # BUG(preserved): original demo loaded resnext50_32x4d for both of these
-    "resnext101_32x8d": ModelSpec(tv.resnext50_32x4d, "fc", 2048),
-    "resnext101_64x4d": ModelSpec(tv.resnext50_32x4d, "fc", 2048),
+    "resnext101_32x8d": ModelSpec(tv.resnext101_32x8d, "fc", 2048),
+    "resnext101_64x4d": ModelSpec(tv.resnext101_64x4d, "fc", 2048),
     # ShuffleNetV2
-    "shufflenet_x0_5": ModelSpec(tv.shufflenet_v2_x0_5, "fc", 1024),
-    "shufflenet_x1": ModelSpec(tv.shufflenet_v2_x1_0, "fc", 1024),
-    "shufflenet_x1_5": ModelSpec(tv.shufflenet_v2_x1_5, "fc", 1024),
-    "shufflenet_x2": ModelSpec(tv.shufflenet_v2_x2_0, "fc", 2048),
+    "shufflenet_v2_x0_5": ModelSpec(tv.shufflenet_v2_x0_5, "fc", 1024),
+    "shufflenet_v2_x1_0": ModelSpec(tv.shufflenet_v2_x1_0, "fc", 1024),
+    "shufflenet_v2_x1_5": ModelSpec(tv.shufflenet_v2_x1_5, "fc", 1024),
+    "shufflenet_v2_x2_0": ModelSpec(tv.shufflenet_v2_x2_0, "fc", 2048),
     # Swin Transformer V2
     "swin_v2_t": ModelSpec(tv.swin_v2_t, "head", 768),
     "swin_v2_s": ModelSpec(tv.swin_v2_s, "head", 768),
@@ -75,15 +74,15 @@ MODELS: dict[str, ModelSpec] = {
     "vit_l_32": ModelSpec(tv.vit_l_32, "heads[0]", 1024),
     "vit_h_14": ModelSpec(tv.vit_h_14, "heads[0]", 1280),
     # VGG
-    "VGG11": ModelSpec(tv.vgg11, "classifier[6]", 4096),
-    "VGG11_bn": ModelSpec(tv.vgg11_bn, "classifier[6]", 4096),
-    "VGG13": ModelSpec(tv.vgg13, "classifier[6]", 4096),
-    "VGG13_bn": ModelSpec(tv.vgg13_bn, "classifier[6]", 4096),
-    "VGG16": ModelSpec(tv.vgg16, "classifier[6]", 4096),
-    "VGG16_bn": ModelSpec(tv.vgg16_bn, "classifier[6]", 4096),
-    "VGG19": ModelSpec(tv.vgg19, "classifier[6]", 4096),
-    "VGG19_bn": ModelSpec(tv.vgg19_bn, "classifier[6]", 4096),
+    "vgg11": ModelSpec(tv.vgg11, "classifier[6]", 4096),
+    "vgg11_bn": ModelSpec(tv.vgg11_bn, "classifier[6]", 4096),
+    "vgg13": ModelSpec(tv.vgg13, "classifier[6]", 4096),
+    "vgg13_bn": ModelSpec(tv.vgg13_bn, "classifier[6]", 4096),
+    "vgg16": ModelSpec(tv.vgg16, "classifier[6]", 4096),
+    "vgg16_bn": ModelSpec(tv.vgg16_bn, "classifier[6]", 4096),
+    "vgg19": ModelSpec(tv.vgg19, "classifier[6]", 4096),
+    "vgg19_bn": ModelSpec(tv.vgg19_bn, "classifier[6]", 4096),
     # Wide ResNet
-    "wide_resnet50": ModelSpec(tv.wide_resnet50_2, "fc", 2048),
-    "wide_resnet101": ModelSpec(tv.wide_resnet101_2, "fc", 2048),
+    "wide_resnet50_2": ModelSpec(tv.wide_resnet50_2, "fc", 2048),
+    "wide_resnet101_2": ModelSpec(tv.wide_resnet101_2, "fc", 2048),
 }

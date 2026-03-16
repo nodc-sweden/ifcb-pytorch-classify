@@ -8,7 +8,7 @@ import yaml
 from ifcb_classify.checkpoint import load_checkpoint
 from ifcb_classify.config import InferConfig
 from ifcb_classify.data.datasets import build_transform
-from ifcb_classify.data.ifcb_bin import iter_bin_images, iter_directory_bins, get_bin_lid
+from ifcb_classify.data.ifcb_bin import get_bin_lid, iter_bin_images, iter_directory_bins
 from ifcb_classify.device import get_device
 from ifcb_classify.hdf5_output import write_class_scores
 from ifcb_classify.models.factory import get_model
@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 
 
 def infer_main(config: InferConfig) -> None:
+    if config.num_threads is not None:
+        torch.set_num_threads(config.num_threads)
+        logger.info("CPU threads limited to %d", config.num_threads)
+
     input_path = Path(config.input_path)
     output_dir = Path(config.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -131,13 +135,7 @@ def _classify_directory(
         target_numbers = []
         images = []
         with fbin:
-            for target_num in fbin.images.index:
-                arr = fbin.images[target_num]
-                from PIL import Image
-
-                img = Image.fromarray(np.asarray(arr, dtype=np.uint8))
-                if img.mode != "RGB":
-                    img = img.convert("RGB")
+            for target_num, img in iter_bin_images(fbin):
                 target_numbers.append(target_num)
                 images.append(transform(img))
 

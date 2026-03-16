@@ -36,7 +36,8 @@ class CheckpointManager:
         if self._best_path and self._best_path.exists():
             self._best_path.unlink()
 
-        self._best_path = self._output_dir / f"{run_name}_best.pt"
+        new_path = self._output_dir / f"{run_name}_best.pt"
+        tmp_path = new_path.with_suffix(".pt.tmp")
         torch.save(
             {
                 "state_dict": model.state_dict(),
@@ -46,15 +47,28 @@ class CheckpointManager:
                 "class_names": class_names,
                 "config": config,
             },
-            self._best_path,
+            tmp_path,
         )
+
+        if self._best_path and self._best_path.exists():
+            self._best_path.unlink()
+        tmp_path.rename(new_path)
+        self._best_path = new_path
         logger.info("Saved best model: %s (epoch %d, %s=%.4f)", self._best_path.name, epoch, self._metric_name, metric_value)
         return True
 
 
 def load_checkpoint(path: str | Path, model_name: str | None = None, classes_path: str | None = None) -> dict:
     path = Path(path)
-    data = torch.load(path, map_location="cpu", weights_only=False)
+    try:
+        data = torch.load(path, map_location="cpu", weights_only=True)
+    except Exception:
+        logger.warning(
+            "Safe load failed for %s — falling back to unsafe load. "
+            "Only load checkpoints from trusted sources.",
+            path,
+        )
+        data = torch.load(path, map_location="cpu", weights_only=False)
 
     # Our pipeline checkpoints have "state_dict" and "config" keys
     if isinstance(data, dict) and "state_dict" in data and "config" in data:

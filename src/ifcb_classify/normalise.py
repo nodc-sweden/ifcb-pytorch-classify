@@ -13,6 +13,9 @@ def compute_dataset_stats(
 ) -> tuple[float, float]:
     """Compute per-channel mean and std for a training dataset.
 
+    Uses Welford's online algorithm to compute mean and variance in a single
+    pass, avoiding the need to iterate the dataset twice.
+
     Uses a non-normalised transform variant (strips _normalised suffix if present).
     """
     base_name = transform_name.replace("_normalised", "")
@@ -20,16 +23,20 @@ def compute_dataset_stats(
     dataset = datasets.ImageFolder(data_dir, transform=transform)
     loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0)
 
-    num_pixels = len(dataset) * width * height * 3
+    count = 0
+    mean = 0.0
+    m2 = 0.0
 
-    total_sum = 0.0
     for batch, _ in loader:
-        total_sum += batch.sum().item()
-    mean = total_sum / num_pixels
+        batch_pixels = batch.numel()
+        batch_mean = batch.mean().item()
+        batch_var = batch.var().item()
 
-    sum_sq_error = 0.0
-    for batch, _ in loader:
-        sum_sq_error += ((batch - mean) ** 2).sum().item()
-    std = (sum_sq_error / num_pixels) ** 0.5
+        new_count = count + batch_pixels
+        delta = batch_mean - mean
+        mean += delta * batch_pixels / new_count
+        m2 += batch_var * batch_pixels + delta * delta * count * batch_pixels / new_count
+        count = new_count
 
+    std = (m2 / count) ** 0.5 if count > 0 else 0.0
     return mean, std

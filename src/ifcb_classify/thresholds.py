@@ -49,7 +49,7 @@ def compute_optimal_thresholds(
         optimal_thresholds.append(best_thresh)
 
         y_pred = (y_score >= best_thresh).astype(int)
-        class_metrics[c] = {
+        class_metrics[class_names[c]] = {
             "class_name": class_names[c],
             "threshold": best_thresh,
             "f1": float(f1_score(y_true, y_pred)),
@@ -105,9 +105,18 @@ def load_thresholds_json(path: str | Path, class_names: list[str]) -> np.ndarray
         data = json.load(f)
 
     class_metrics = data["class_metrics"]
+    class_name_to_idx = {name: i for i, name in enumerate(class_names)}
     thresholds = np.full(len(class_names), np.nan, dtype=np.float64)
-    for idx_str, metrics in class_metrics.items():
-        idx = int(idx_str)
-        if idx < len(thresholds):
-            thresholds[idx] = metrics["threshold"]
+    for key, metrics in class_metrics.items():
+        if key in class_name_to_idx:
+            thresholds[class_name_to_idx[key]] = metrics["threshold"]
+        else:
+            # Legacy format: keys are integer indices as strings
+            try:
+                idx = int(key)
+            except ValueError:
+                logger.warning("Unknown class in thresholds file: %s", key)
+                continue
+            if idx < len(thresholds):
+                thresholds[idx] = metrics["threshold"]
     return thresholds

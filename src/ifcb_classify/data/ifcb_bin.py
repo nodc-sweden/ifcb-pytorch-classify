@@ -5,21 +5,29 @@ import numpy as np
 from PIL import Image
 
 
-def iter_bin_images(bin_path: str | Path) -> Iterator[tuple[int, Image.Image]]:
+def iter_bin_images(bin_source) -> Iterator[tuple[int, Image.Image]]:
     """Yield (target_number, RGB PIL Image) for each ROI in an IFCB bin.
 
-    bin_path can point to any of the three fileset files (.adc, .roi, .hdr).
+    bin_source can be a file path (str/Path) to any of the three fileset files
+    (.adc, .roi, .hdr), or an already-opened bin object.
     """
-    from ifcb import open_raw
+    if isinstance(bin_source, (str, Path)):
+        from ifcb import open_raw
 
-    fbin = open_raw(str(bin_path))
-    with fbin:
-        for target_num in fbin.images.index:
-            arr = fbin.images[target_num]
-            img = Image.fromarray(np.asarray(arr, dtype=np.uint8))
-            if img.mode != "RGB":
-                img = img.convert("RGB")
-            yield target_num, img
+        fbin = open_raw(str(bin_source))
+        with fbin:
+            yield from _iter_images_from_bin(fbin)
+    else:
+        yield from _iter_images_from_bin(bin_source)
+
+
+def _iter_images_from_bin(fbin) -> Iterator[tuple[int, Image.Image]]:
+    for target_num in fbin.images.index:
+        arr = fbin.images[target_num]
+        img = Image.fromarray(np.asarray(arr, dtype=np.uint8))
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        yield target_num, img
 
 
 def iter_directory_bins(dir_path: str | Path) -> Iterator[tuple[str, object]]:
