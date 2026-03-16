@@ -48,3 +48,11 @@ testpaths = ["tests"]
 markers = [
     "slow: marks tests that download model weights",
 ]
+[tool.coverage.run]
+source = ["src/ifcb_classify"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]
