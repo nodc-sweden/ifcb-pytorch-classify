@@ -132,7 +132,7 @@ def test_generate_plots_large_class_count(tmp_path):
 
 
 def test_interactive_plots_with_plotly(tmp_path, sample_epoch_metrics, sample_confusion_matrix, sample_class_names, sample_class_metrics):
-    plotly = pytest.importorskip("plotly")
+    pytest.importorskip("plotly")
 
     paths = generate_evaluation_plots(
         output_dir=tmp_path,
