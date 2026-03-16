@@ -19,11 +19,11 @@ env/
 # Output artifacts
 output/
 results/
-models/
+/models/
 
 # Data (tracked separately or too large for git)
-training_data/
-test_data/
+/training_data/
+/test_data/
 
 # Jupyter
 .ipynb_checkpoints/

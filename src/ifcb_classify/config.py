@@ -1,7 +1,19 @@
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
+
+
+def _expand_date_placeholders(value: str) -> str:
+    """Expand date placeholders like {year}, {month}, {day} in path strings."""
+    now = datetime.now(timezone.utc)
+    return value.format(
+        year=now.strftime("%Y"),
+        month=now.strftime("%m"),
+        day=now.strftime("%d"),
+        date=now.strftime("%Y%m%d"),
+    )
 
 
 @dataclass(frozen=True)
@@ -53,7 +65,11 @@ def load_config(yaml_path: str | Path, config_cls: type, overrides: dict | None 
         data = yaml.safe_load(f) or {}
     if overrides:
         data.update({k: v for k, v in overrides.items() if v is not None})
-    return config_cls(**{k: v for k, v in data.items() if k in config_cls.__dataclass_fields__})
+    filtered = {k: v for k, v in data.items() if k in config_cls.__dataclass_fields__}
+    for k, v in filtered.items():
+        if isinstance(v, str) and "{" in v:
+            filtered[k] = _expand_date_placeholders(v)
+    return config_cls(**filtered)
 
 
 def config_to_dict(config) -> dict:

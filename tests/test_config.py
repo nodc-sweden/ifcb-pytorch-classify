@@ -1,5 +1,4 @@
-import tempfile
-from pathlib import Path
+from datetime import datetime, timezone
 
 import yaml
 
@@ -33,3 +32,28 @@ def test_infer_config_defaults():
     assert config.batch_size == 64
     assert config.device == "auto"
     assert config.threshold_default == 0.0
+
+
+def test_date_placeholder_expansion(tmp_path):
+    cfg = {
+        "input_path": "/ifcb/data/{year}",
+        "model_checkpoint": "/models/best.pt",
+        "output_dir": "/ifcb/output/{year}",
+    }
+    yaml_path = tmp_path / "infer.yaml"
+    yaml_path.write_text(yaml.dump(cfg))
+
+    config = load_config(yaml_path, InferConfig)
+    year = datetime.now(timezone.utc).strftime("%Y")
+    assert config.input_path == f"/ifcb/data/{year}"
+    assert config.output_dir == f"/ifcb/output/{year}"
+
+
+def test_date_placeholder_month_day(tmp_path):
+    cfg = {"data_dir": "/data/{year}/{month}/{day}", "model": "resnet18"}
+    yaml_path = tmp_path / "train.yaml"
+    yaml_path.write_text(yaml.dump(cfg))
+
+    config = load_config(yaml_path, TrainConfig)
+    now = datetime.now(timezone.utc)
+    assert config.data_dir == f"/data/{now:%Y}/{now:%m}/{now:%d}"
