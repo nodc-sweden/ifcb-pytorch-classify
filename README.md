@@ -43,7 +43,6 @@ uv pip install -e .
 ```bash
 uv pip install -e ".[mlflow]"   # MLflow support
 uv pip install -e ".[wandb]"    # Weights & Biases support
-uv pip install -e ".[plots]"    # Interactive evaluation plots (plotly)
 uv pip install -e ".[dev]"      # Development tools
 ```
 
@@ -68,7 +67,7 @@ Add `--plots` to generate evaluation plots after training:
 python -m ifcb_classify train --config configs/train_default.yaml --plots
 ```
 
-This produces static PNG plots (training curves, per-class F1, precision vs. recall scatter, class support distribution, top confused pairs) saved to `<output_dir>/plots/<run_name>/`. With the `plots` extra installed, interactive HTML plots are also generated (zoomable confusion matrix with row-normalized percentages, sortable per-class metrics table).
+This produces static PNG plots (training curves, per-class F1, precision vs. recall scatter, class support distribution, top confused pairs) saved to `<output_dir>/plots/<run_name>/`.  Interactive HTML plots are also generated (zoomable confusion matrix with row-normalized percentages, sortable per-class metrics table).
 
 Training data should be organised in class folders:
 
