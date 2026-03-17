@@ -6,14 +6,17 @@ import yaml
 
 
 def _expand_date_placeholders(value: str) -> str:
-    """Expand date placeholders like {year}, {month}, {day} in path strings."""
+    """Expand date placeholders like {year}, {month}, {day}, {date} in path strings."""
     now = datetime.now(timezone.utc)
-    return value.format(
-        year=now.strftime("%Y"),
-        month=now.strftime("%m"),
-        day=now.strftime("%d"),
-        date=now.strftime("%Y%m%d"),
-    )
+    replacements = {
+        "year": now.strftime("%Y"),
+        "month": now.strftime("%m"),
+        "day": now.strftime("%d"),
+        "date": now.strftime("%Y%m%d"),
+    }
+    for key, val in replacements.items():
+        value = value.replace(f"{{{key}}}", val)
+    return value
 
 
 @dataclass(frozen=True)
@@ -72,6 +75,7 @@ class InferConfig:
     classes_path: str | None = None
     model_name: str | None = None
     num_threads: int | None = None
+    allow_unsafe: bool = False
 
     def __post_init__(self):
         if self.batch_size < 1:

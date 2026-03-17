@@ -1,6 +1,8 @@
 import pytest
+import numpy as np
+from PIL import Image
 
-from ifcb_classify.cli import build_parser
+from ifcb_classify.cli import build_parser, run_cli
 
 
 def test_train_parser():
@@ -55,3 +57,35 @@ def test_missing_command_raises():
     parser = build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args([])
+
+
+def test_run_cli_normalise(tmp_path, capsys):
+    classes = ["A", "B"]
+    for cls in classes:
+        cls_dir = tmp_path / cls
+        cls_dir.mkdir()
+        for i in range(3):
+            img = Image.fromarray(np.zeros((32, 32, 3), dtype=np.uint8))
+            img.save(cls_dir / f"img_{i}.png")
+
+    run_cli(["normalise", "--data-dir", str(tmp_path)])
+    captured = capsys.readouterr()
+    assert "mean:" in captured.out
+    assert "std:" in captured.out
+
+
+def test_run_cli_infer_missing_args_raises():
+    with pytest.raises(SystemExit, match="--config or both --input and --model"):
+        run_cli(["infer", "--input", "/some/path"])
+
+
+def test_infer_parser_allow_unsafe():
+    parser = build_parser()
+    args = parser.parse_args(["infer", "--config", "infer.yaml", "--allow-unsafe"])
+    assert args.allow_unsafe is True
+
+
+def test_infer_parser_allow_unsafe_default():
+    parser = build_parser()
+    args = parser.parse_args(["infer", "--config", "infer.yaml"])
+    assert args.allow_unsafe is False

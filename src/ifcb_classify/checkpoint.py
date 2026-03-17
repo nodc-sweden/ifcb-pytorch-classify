@@ -58,11 +58,21 @@ class CheckpointManager:
         return True
 
 
-def load_checkpoint(path: str | Path, model_name: str | None = None, classes_path: str | None = None) -> dict:
+def load_checkpoint(
+    path: str | Path,
+    model_name: str | None = None,
+    classes_path: str | None = None,
+    allow_unsafe: bool = False,
+) -> dict:
     path = Path(path)
     try:
         data = torch.load(path, map_location="cpu", weights_only=True)
     except Exception:
+        if not allow_unsafe:
+            raise RuntimeError(
+                f"Safe load failed for {path}. If you trust this checkpoint, "
+                "re-run with --allow-unsafe."
+            )
         logger.warning(
             "Safe load failed for %s — falling back to unsafe load. "
             "Only load checkpoints from trusted sources.",
@@ -112,5 +122,5 @@ def _guess_model_name(state_dict: dict) -> str:
     if any(k.startswith("layer4") for k in keys) and "fc.weight" in keys:
         return "resnet50"
     if any(k.startswith("features") for k in keys) and "classifier.1.weight" in keys:
-        return "efficientnet_b0"
+        return "efficientnet_v2_s"
     return "resnet50"

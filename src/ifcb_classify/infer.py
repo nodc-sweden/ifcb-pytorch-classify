@@ -30,7 +30,12 @@ def infer_main(config: InferConfig) -> None:
         logger.info("No new bins to classify — skipping model load")
         return
 
-    checkpoint = load_checkpoint(config.model_checkpoint, model_name=config.model_name, classes_path=config.classes_path)
+    checkpoint = load_checkpoint(
+        config.model_checkpoint,
+        model_name=config.model_name,
+        classes_path=config.classes_path,
+        allow_unsafe=config.allow_unsafe,
+    )
     train_config = checkpoint["config"]
     class_names = checkpoint["class_names"]
     num_classes = len(class_names)
