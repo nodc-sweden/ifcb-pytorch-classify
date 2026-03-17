@@ -19,6 +19,9 @@ output_dir: output
 checkpoint_metric: weighted_f1
 tracker: csv
 
+# Uncomment to generate evaluation plots after training (install plotly for interactive plots):
+# plots: true
+
 # Uncomment to enable MLflow or W&B:
 # tracker: mlflow
 # mlflow_uri: http://localhost:5000

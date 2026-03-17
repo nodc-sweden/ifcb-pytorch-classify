@@ -43,6 +43,7 @@ uv pip install -e .
 ```bash
 uv pip install -e ".[mlflow]"   # MLflow support
 uv pip install -e ".[wandb]"    # Weights & Biases support
+uv pip install -e ".[plots]"    # Interactive evaluation plots (plotly)
 uv pip install -e ".[dev]"      # Development tools
 ```
 
@@ -60,6 +61,14 @@ With CLI overrides:
 python -m ifcb_classify train --config configs/train_default.yaml \
     --model convnext_tiny --lr 0.001 --epochs 30
 ```
+
+Add `--plots` to generate evaluation plots after training:
+
+```bash
+python -m ifcb_classify train --config configs/train_default.yaml --plots
+```
+
+This produces static PNG plots (training curves, per-class F1, precision vs. recall scatter, class support distribution, top confused pairs) saved to `<output_dir>/plots/<run_name>/`. With the `plots` extra installed, interactive HTML plots are also generated (zoomable confusion matrix with row-normalized percentages, sortable per-class metrics table).
 
 Training data should be organised in class folders:
 
@@ -111,6 +120,7 @@ See `configs/train_default.yaml` and `configs/infer_default.yaml` for all availa
 | `epochs` | `20` | Number of training epochs |
 | `checkpoint_metric` | `weighted_f1` | Metric used for best-model checkpointing |
 | `tracker` | `csv` | Experiment tracker (`csv`, `mlflow`, `wandb`, `none`) |
+| `plots` | `false` | Generate evaluation plots after training |
 
 ### Date placeholders
 
@@ -140,6 +150,7 @@ src/ifcb_classify/
   infer.py               # Inference pipeline
   normalise.py           # Dataset mean/std computation
   metrics.py             # Evaluation metrics (F1, AUROC, etc.)
+  plots.py               # Evaluation plots (static + interactive)
   checkpoint.py          # Best-model saving
   hdf5_output.py         # IFCB Dashboard v3 HDF5 writer
   models/
