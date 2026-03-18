@@ -18,13 +18,21 @@ Pipeline for training and running inference on IFCB (Imaging FlowCytobot) plankt
 
 ## Installation
 
-Requires Python 3.11–3.12 and PyTorch.
+Requires Python 3.11–3.12, PyTorch, and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ### CPU only
 
+**Linux/macOS:**
 ```bash
 uv venv
 source .venv/bin/activate
+uv pip install -e .
+```
+
+**Windows:**
+```powershell
+uv venv
+.venv\Scripts\activate
 uv pip install -e .
 ```
 
@@ -32,10 +40,19 @@ uv pip install -e .
 
 PyTorch from PyPI is CPU-only. To get CUDA support, install torch first from the [PyTorch wheel index](https://pytorch.org/get-started/locally/) for your CUDA version, then install the package:
 
+**Linux/macOS:**
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126  # adjust to your CUDA version
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130  # adjust to your CUDA version
+uv pip install -e .
+```
+
+**Windows:**
+```powershell
+uv venv
+.venv\Scripts\activate
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130  # adjust to your CUDA version
 uv pip install -e .
 ```
 ### Optional extras
