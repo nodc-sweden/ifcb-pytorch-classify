@@ -90,6 +90,16 @@ python -m ifcb_classify infer \
     --output /path/to/class_scores
 ```
 
+Legacy checkpoints (raw state dicts saved outside this pipeline) require unsafe pickle loading. Add `--allow-unsafe` to permit this:
+
+```bash
+python -m ifcb_classify infer \
+    --input /path/to/bins \
+    --model /path/to/legacy_model.pt \
+    --classes /path/to/classes.txt \
+    --allow-unsafe
+```
+
 Or with a config file:
 
 ```bash

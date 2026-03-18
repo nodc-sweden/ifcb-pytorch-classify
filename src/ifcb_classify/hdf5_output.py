@@ -23,9 +23,13 @@ def write_class_scores(
         thresholds: Float64 array of per-class thresholds, length C. Use NaN where not set.
     """
     n_rois, n_classes = scores.shape
-    assert len(class_labels) == n_classes
-    assert len(roi_numbers) == n_rois
-    assert len(thresholds) == n_classes
+    if len(class_labels) != n_classes:
+        raise ValueError(f"Expected {n_classes} class labels, got {len(class_labels)}")
+    if len(roi_numbers) != n_rois:
+        raise ValueError(f"Expected {n_rois} ROI numbers, got {len(roi_numbers)}")
+    if len(thresholds) != n_classes:
+        raise ValueError(f"Expected {n_classes} thresholds, got {len(thresholds)}")
+
 
     best_class_idx = np.argmax(scores, axis=1)
     class_name_auto = [class_labels[i] for i in best_class_idx]

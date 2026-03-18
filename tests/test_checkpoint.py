@@ -2,7 +2,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from ifcb_classify.checkpoint import CheckpointManager, _guess_model_name, _load_class_names
+from ifcb_classify.checkpoint import CheckpointManager, load_checkpoint, _guess_model_name, _load_class_names
 
 
 class TinyModel(nn.Module):
@@ -83,9 +83,56 @@ def test_guess_model_name_resnet():
 
 def test_guess_model_name_efficientnet():
     state_dict = {"features.0.weight": None, "classifier.1.weight": None}
-    assert _guess_model_name(state_dict) == "efficientnet_b0"
+    assert _guess_model_name(state_dict) == "efficientnet_v2_s"
 
 
 def test_guess_model_name_fallback():
     state_dict = {"some.random.key": None}
     assert _guess_model_name(state_dict) == "resnet50"
+
+
+def test_load_checkpoint_roundtrip(tmp_path):
+    mgr = CheckpointManager(str(tmp_path), metric_name="acc", mode="max")
+    model = TinyModel()
+    mgr.maybe_save(model, 0.9, "run1", epoch=1, class_names=["A", "B"], config={"model": "resnet18"})
+
+    data = load_checkpoint(tmp_path / "run1_best.pt")
+    assert data["class_names"] == ["A", "B"]
+    assert data["config"]["model"] == "resnet18"
+    assert "state_dict" in data
+
+
+def test_load_checkpoint_legacy_with_classes(tmp_path):
+    model = TinyModel()
+    torch.save(model.state_dict(), tmp_path / "legacy.pt")
+    (tmp_path / "classes.txt").write_text("ClassA\nClassB\n")
+
+    data = load_checkpoint(tmp_path / "legacy.pt", model_name="resnet50")
+    assert data["class_names"] == ["ClassA", "ClassB"]
+    assert data["config"]["model"] == "resnet50"
+    assert "state_dict" in data
+
+
+def test_load_checkpoint_legacy_auto_classes_txt(tmp_path):
+    model = TinyModel()
+    torch.save(model.state_dict(), tmp_path / "model.pt")
+    (tmp_path / "classes.txt").write_text("X\nY\nZ\n")
+
+    data = load_checkpoint(tmp_path / "model.pt")
+    assert data["class_names"] == ["X", "Y", "Z"]
+
+
+def test_load_checkpoint_unsafe_blocked_by_default(tmp_path):
+    # Save a legacy checkpoint with a non-weight object that triggers unsafe load
+    torch.save({"custom_obj": object()}, tmp_path / "unsafe.pt")
+
+    with pytest.raises(RuntimeError, match="allow-unsafe"):
+        load_checkpoint(tmp_path / "unsafe.pt")
+
+
+def test_load_checkpoint_unsafe_allowed(tmp_path):
+    torch.save({"custom_obj": object()}, tmp_path / "unsafe.pt")
+    (tmp_path / "classes.txt").write_text("A\nB\n")
+
+    data = load_checkpoint(tmp_path / "unsafe.pt", allow_unsafe=True)
+    assert "state_dict" in data

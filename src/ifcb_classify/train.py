@@ -98,6 +98,18 @@ def _train_run(config: TrainConfig, device: torch.device, run_name: str, run_par
 
     tracker.begin_run(run_name, run_params)
 
+    all_epoch_metrics, best_class_metrics, best_confusion_matrix = _run_training_loop(
+        config, model, train_loader, val_loader, loss_fn, optimizer,
+        device, tracker, checkpoint_mgr, metrics_calc, class_names, run_name,
+    )
+
+    _finalize_run(config, run_name, all_epoch_metrics, best_confusion_matrix, class_names, best_class_metrics, tracker)
+
+
+def _run_training_loop(
+    config, model, train_loader, val_loader, loss_fn, optimizer,
+    device, tracker, checkpoint_mgr, metrics_calc, class_names, run_name,
+):
     all_epoch_metrics: list[dict] = []
     best_class_metrics: dict | None = None
     best_confusion_matrix = None
@@ -149,6 +161,10 @@ def _train_run(config: TrainConfig, device: torch.device, run_name: str, run_par
 
         metrics_calc.reset()
 
+    return all_epoch_metrics, best_class_metrics, best_confusion_matrix
+
+
+def _finalize_run(config, run_name, all_epoch_metrics, best_confusion_matrix, class_names, best_class_metrics, tracker):
     if config.plots and best_confusion_matrix is not None:
         logger.info("Generating evaluation plots...")
         generate_evaluation_plots(
