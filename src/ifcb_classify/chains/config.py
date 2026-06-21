@@ -1,4 +1,56 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+DEFAULT_IOU = 0.3
+DEFAULT_CONF = 0.25
+
+
+@dataclass(frozen=True)
+class ChainModelSpec:
+    """A single per-taxon detector: weights plus NMS/confidence thresholds."""
+
+    weights: str
+    iou: float = DEFAULT_IOU
+    conf: float = DEFAULT_CONF
+
+
+@dataclass(frozen=True)
+class ChainCountingConfig:
+    """Inference-time chain counting: which classifier labels get counted, and how.
+
+    Built from the ``chain_counting`` block of an inference YAML config. The keys
+    of ``models`` must match the classifier's output labels exactly; multiple
+    labels may point at the same weights (e.g. several Thalassiosira species and
+    the genus-level class sharing one detector).
+    """
+
+    enabled: bool = False
+    models: dict[str, ChainModelSpec] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ChainCountingConfig":
+        enabled = bool(data.get("enabled", False))
+        default_iou = float(data.get("iou", DEFAULT_IOU))
+        default_conf = float(data.get("conf", DEFAULT_CONF))
+
+        models: dict[str, ChainModelSpec] = {}
+        for name, spec in (data.get("models") or {}).items():
+            if isinstance(spec, str):
+                spec = {"weights": spec}
+            weights = spec.get("weights")
+            if not weights:
+                raise ValueError(f"chain_counting model '{name}' is missing 'weights'")
+            iou = float(spec.get("iou", default_iou))
+            conf = float(spec.get("conf", default_conf))
+            if not (0.0 <= iou <= 1.0):
+                raise ValueError(f"chain_counting model '{name}': iou must be in [0, 1], got {iou}")
+            if not (0.0 <= conf <= 1.0):
+                raise ValueError(f"chain_counting model '{name}': conf must be in [0, 1], got {conf}")
+            models[name] = ChainModelSpec(weights=weights, iou=iou, conf=conf)
+
+        if enabled and not models:
+            raise ValueError("chain_counting is enabled but no models are configured")
+
+        return cls(enabled=enabled, models=models)
 
 
 @dataclass(frozen=True)

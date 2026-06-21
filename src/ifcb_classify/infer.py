@@ -10,7 +10,7 @@ from ifcb_classify.config import InferConfig
 from ifcb_classify.data.datasets import build_transform
 from ifcb_classify.data.ifcb_bin import get_bin_lid, iter_bin_images, iter_directory_bins
 from ifcb_classify.device import get_device
-from ifcb_classify.hdf5_output import write_class_scores
+from ifcb_classify.hdf5_output import resolve_class_names, write_class_scores
 from ifcb_classify.models.factory import get_model
 from ifcb_classify.seed import set_seed
 
@@ -59,13 +59,33 @@ def infer_main(config: InferConfig) -> None:
 
     thresholds = _load_thresholds(config, class_names)
     classifier_name = config.classifier_name or _derive_classifier_name(config, train_config)
+    counter = _build_chain_counter(config)
 
     if input_path.is_file():
-        _classify_bin_file(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite)
+        _classify_bin_file(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, counter)
     elif input_path.is_dir():
-        _classify_directory(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite)
+        _classify_directory(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, counter)
     else:
         raise FileNotFoundError(f"Input path not found: {input_path}")
+
+
+def _build_chain_counter(config: InferConfig):
+    """Construct a ChainCounter from the inference config, or None if disabled."""
+    block = config.chain_counting
+    if not block:
+        return None
+
+    from ifcb_classify.chains.config import ChainCountingConfig
+
+    cc_config = ChainCountingConfig.from_dict(block)
+    if not cc_config.enabled:
+        return None
+
+    from ifcb_classify.chains.counter import ChainCounter
+
+    counter = ChainCounter(cc_config)
+    logger.info("Chain counting enabled for: %s", ", ".join(sorted(cc_config.models)))
+    return counter
 
 
 def _has_pending_bins(input_path: Path, output_dir: Path) -> bool:
@@ -100,7 +120,7 @@ def _output_path_for_lid(output_dir: Path, lid: str) -> Path:
 
 
 def _classify_bin_file(
-    bin_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite
+    bin_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, counter=None
 ):
     lid = get_bin_lid(bin_path)
     out_path = _output_path_for_lid(output_dir, lid)
@@ -113,20 +133,23 @@ def _classify_bin_file(
 
     target_numbers = []
     images = []
+    raw_images = [] if counter is not None else None
     for target_num, img in iter_bin_images(bin_path):
         target_numbers.append(target_num)
         images.append(transform(img))
+        if raw_images is not None:
+            raw_images.append(img)
 
     if not images:
         logger.warning("No images in bin: %s", lid)
         return
 
     scores = _batch_predict(model, images, device, batch_size)
-    _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds)
+    _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, counter, raw_images)
 
 
 def _classify_directory(
-    dir_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite
+    dir_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, counter=None
 ):
     for lid, fbin in iter_directory_bins(dir_path):
         out_path = _output_path_for_lid(output_dir, lid)
@@ -139,17 +162,20 @@ def _classify_directory(
 
         target_numbers = []
         images = []
+        raw_images = [] if counter is not None else None
         with fbin:
             for target_num, img in iter_bin_images(fbin):
                 target_numbers.append(target_num)
                 images.append(transform(img))
+                if raw_images is not None:
+                    raw_images.append(img)
 
         if not images:
             logger.warning("No images in bin: %s", lid)
             continue
 
         scores = _batch_predict(model, images, device, batch_size)
-        _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds)
+        _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, counter, raw_images)
 
 
 def _batch_predict(model, images, device, batch_size):
@@ -163,11 +189,40 @@ def _batch_predict(model, images, device, batch_size):
     return np.concatenate(all_scores, axis=0)
 
 
-def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds):
+def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, counter=None, raw_images=None):
     roi_numbers = np.array(target_numbers, dtype=np.int32)
+    chain_counts, models_meta = _compute_chain_counts(scores, class_names, thresholds, counter, raw_images)
     output_path = _output_path_for_lid(output_dir, lid)
-    write_class_scores(output_path, scores, class_names, roi_numbers, classifier_name, thresholds)
-    logger.info("Wrote: %s (%d ROIs)", output_path.name, len(target_numbers))
+    write_class_scores(
+        output_path, scores, class_names, roi_numbers, classifier_name, thresholds,
+        chain_counts=chain_counts, chain_counter_models=models_meta,
+    )
+    if chain_counts is not None:
+        n_counted = int((chain_counts >= 0).sum())
+        total_cells = int(chain_counts[chain_counts >= 0].sum())
+        logger.info(
+            "Wrote: %s (%d ROIs, %d chain-counted, %d cells)",
+            output_path.name, len(target_numbers), n_counted, total_cells,
+        )
+    else:
+        logger.info("Wrote: %s (%d ROIs)", output_path.name, len(target_numbers))
+
+
+def _compute_chain_counts(scores, class_names, thresholds, counter, raw_images):
+    """Count cells for ROIs whose thresholded class is configured for counting.
+
+    Returns ``(chain_counts, models_metadata)`` or ``(None, None)`` when counting
+    is disabled. Uncounted ROIs get the sentinel ``-1``.
+    """
+    if counter is None:
+        return None, None
+
+    _, class_name = resolve_class_names(scores, class_names, thresholds)
+    counts = np.full(len(class_name), -1, dtype=np.int32)
+    for j, cn in enumerate(class_name):
+        if counter.handles(cn):
+            counts[j] = counter.count(raw_images[j], cn)
+    return counts, counter.models_metadata()
 
 
 def _load_thresholds(config: InferConfig, class_names: list[str]) -> np.ndarray:

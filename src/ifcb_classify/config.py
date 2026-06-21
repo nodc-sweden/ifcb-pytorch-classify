@@ -76,6 +76,7 @@ class InferConfig:
     model_name: str | None = None
     num_threads: int | None = None
     allow_unsafe: bool = False
+    chain_counting: dict | None = None
 
     def __post_init__(self):
         if self.batch_size < 1:

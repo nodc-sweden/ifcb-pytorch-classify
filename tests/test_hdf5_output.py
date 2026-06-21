@@ -1,3 +1,5 @@
+import json
+
 import h5py
 import numpy as np
 
@@ -39,3 +41,39 @@ def test_write_class_scores(tmp_path):
         class_names = [x.decode() if isinstance(x, bytes) else x for x in f["class_name"][:]]
         for name in class_names:
             assert name in ("ClassA", "ClassB", "ClassC", "unclassified")
+
+        # No chain_count dataset when chain_counts is not provided (backward compatible)
+        assert "chain_count" not in f
+
+
+def test_write_class_scores_with_chain_counts(tmp_path):
+    n_rois = 4
+    scores = np.array([[0.9, 0.1], [0.2, 0.8], [0.7, 0.3], [0.4, 0.6]])
+    class_labels = ["Skeletonema", "Other"]
+    roi_numbers = np.arange(1, n_rois + 1, dtype=np.int32)
+    thresholds = np.array([np.nan, np.nan])
+    chain_counts = np.array([5, -1, 8, -1], dtype=np.int32)
+    models = {"Skeletonema": {"weights": "best.pt", "iou": 0.3, "conf": 0.25}}
+
+    output_path = tmp_path / "with_counts.h5"
+    write_class_scores(
+        output_path, scores, class_labels, roi_numbers, "test_model", thresholds,
+        chain_counts=chain_counts, chain_counter_models=models,
+    )
+
+    with h5py.File(output_path, "r") as f:
+        assert "chain_count" in f
+        np.testing.assert_array_equal(f["chain_count"][:], [5, -1, 8, -1])
+        assert f["chain_count"].dtype == np.int32
+        assert json.loads(f.attrs["chain_counter_models"]) == models
+
+
+def test_write_class_scores_chain_counts_length_mismatch(tmp_path):
+    import pytest
+
+    scores = np.array([[0.9, 0.1], [0.2, 0.8]])
+    with pytest.raises(ValueError, match="chain counts"):
+        write_class_scores(
+            tmp_path / "bad.h5", scores, ["A", "B"], np.array([1, 2], dtype=np.int32),
+            "m", np.array([np.nan, np.nan]), chain_counts=np.array([1], dtype=np.int32),
+        )

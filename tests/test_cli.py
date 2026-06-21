@@ -119,3 +119,15 @@ def test_infer_parser_allow_unsafe_default():
     parser = build_parser()
     args = parser.parse_args(["infer", "--config", "infer.yaml"])
     assert args.allow_unsafe is False
+
+
+def test_infer_parser_no_count():
+    parser = build_parser()
+    args = parser.parse_args(["infer", "--config", "infer.yaml", "--no-count"])
+    assert args.no_count is True
+
+
+def test_infer_parser_no_count_default():
+    parser = build_parser()
+    args = parser.parse_args(["infer", "--config", "infer.yaml"])
+    assert args.no_count is False

@@ -50,6 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     infer_parser.add_argument("--overwrite", action="store_true", default=False, help="Overwrite existing output files (default: skip)")
     infer_parser.add_argument("--num-threads", dest="num_threads", type=int, help="Limit CPU threads for inference (default: all cores)")
     infer_parser.add_argument("--allow-unsafe", dest="allow_unsafe", action="store_true", default=False, help="Allow unsafe checkpoint loading for legacy .pt files")
+    infer_parser.add_argument("--no-count", dest="no_count", action="store_true", default=False, help="Disable chain counting even if enabled in the config")
     infer_parser.add_argument("-v", "--verbose", action="store_true")
 
     # --- chains-train ---
@@ -110,7 +111,7 @@ def _run_infer(parsed) -> None:
     from ifcb_classify.config import InferConfig, load_config
     from ifcb_classify.infer import infer_main
 
-    overrides = {k: v for k, v in vars(parsed).items() if k not in ("command", "config", "verbose") and v is not None}
+    overrides = {k: v for k, v in vars(parsed).items() if k not in ("command", "config", "verbose", "no_count") and v is not None}
 
     if parsed.config:
         config = load_config(parsed.config, InferConfig, overrides)
@@ -118,6 +119,10 @@ def _run_infer(parsed) -> None:
         if not parsed.input_path or not parsed.model_checkpoint:
             raise SystemExit("Either --config or both --input and --model are required")
         config = InferConfig(**{k: v for k, v in overrides.items() if k in InferConfig.__dataclass_fields__})
+
+    if parsed.no_count and config.chain_counting:
+        from dataclasses import replace
+        config = replace(config, chain_counting=None)
 
     infer_main(config)
 

@@ -141,9 +141,6 @@ Requires the `chains` extra:
 uv pip install -e ".[chains]"
 ```
 
-> Inference-time counting is documented separately once integrated; this
-> section covers training a detector.
-
 #### Training a detector for any chain-forming taxon
 
 Train one detector per taxon you want to count. This works for any chain-forming
@@ -195,6 +192,40 @@ point; use a larger model (`yolo11x.pt`) on a GPU (`--device 0`) for best
 accuracy. CUDA requires a CUDA build of PyTorch (see [With CUDA](#with-cuda)).
 
 See `configs/chains_train_default.yaml` for all options.
+
+#### Counting during inference
+
+Add a `chain_counting` block to your inference config to count cells while
+classifying. Only ROIs whose **thresholded `class_name`** matches a configured
+key are counted; all other ROIs get `chain_count = -1`.
+
+```yaml
+chain_counting:
+  enabled: true
+  conf: 0.25            # default; per-model override allowed
+  iou: 0.30             # default; per-model override allowed
+  models:
+    Skeletonema_marinoi:
+      weights: /models/chains/chains_skeletonema_yolo11n/weights/best.pt
+      iou: 0.30
+    # Several labels may share one detector (e.g. species + genus-level class):
+    # Thalassiosira_spp: { weights: /models/chains/thalassiosira_best.pt }
+```
+
+> **Keys must match the classifier's output labels exactly.** A detector is a
+> single-class "cell vs. not-cell" model, so one detector typically serves all
+> species of a genus plus the genus-level class — map each label to the same
+> weights.
+
+```bash
+python -m ifcb_classify infer --config configs/infer_with_chains.yaml
+python -m ifcb_classify infer --config configs/infer_with_chains.yaml --no-count  # disable
+```
+
+The output `_class.h5` gains a `chain_count` dataset (int32, one per ROI; `-1`
+where not counted) and a `chain_counter_models` JSON attribute recording the
+weights/IoU/conf used. Existing consumers ignore the extra dataset. See
+`configs/infer_with_chains.yaml` for a full example.
 
 ### Dataset normalisation
 
@@ -251,8 +282,9 @@ src/ifcb_classify/
   checkpoint.py          # Best-model saving
   hdf5_output.py         # IFCB Dashboard v3 HDF5 writer
   chains/                # Optional YOLO chain counting (requires [chains] extra)
-    config.py            # ChainTrainConfig
+    config.py            # ChainTrainConfig + ChainCountingConfig
     train.py             # Per-taxon YOLO detector training
+    counter.py           # Per-taxon cell counting at inference time
   models/
     factory.py           # Model instantiation
     registry.py          # 40+ architecture definitions
