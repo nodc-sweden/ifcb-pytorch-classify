@@ -52,6 +52,23 @@ def build_parser() -> argparse.ArgumentParser:
     infer_parser.add_argument("--allow-unsafe", dest="allow_unsafe", action="store_true", default=False, help="Allow unsafe checkpoint loading for legacy .pt files")
     infer_parser.add_argument("-v", "--verbose", action="store_true")
 
+    # --- chains-train ---
+    chains_train_parser = subparsers.add_parser(
+        "chains-train", help="Train a YOLO chain-counting detector for a chain-forming taxon"
+    )
+    chains_train_parser.add_argument("--config", help="Path to chain-training YAML config")
+    chains_train_parser.add_argument("--class-name", dest="class_name", help="Taxon name (e.g. Skeletonema)")
+    chains_train_parser.add_argument("--data", help="Path to YOLO data.yaml or dataset directory")
+    chains_train_parser.add_argument("--model", help="Pretrained YOLO weights to fine-tune (e.g. yolo11n.pt, yolo11x.pt)")
+    chains_train_parser.add_argument("--epochs", type=int)
+    chains_train_parser.add_argument("--imgsz", type=int)
+    chains_train_parser.add_argument("--batch", type=int)
+    chains_train_parser.add_argument("--device", help="'cpu', or GPU index like '0'")
+    chains_train_parser.add_argument("--patience", type=int, help="Early-stopping patience")
+    chains_train_parser.add_argument("--project", help="Output directory for training runs")
+    chains_train_parser.add_argument("--name", help="Run name (default derived from class and model)")
+    chains_train_parser.add_argument("-v", "--verbose", action="store_true")
+
     # --- normalise ---
     norm_parser = subparsers.add_parser("normalise", help="Compute dataset mean and std")
     norm_parser.add_argument("--data-dir", dest="data_dir", required=True)
@@ -74,6 +91,8 @@ def run_cli(args=None) -> None:
         _run_train(parsed)
     elif parsed.command == "infer":
         _run_infer(parsed)
+    elif parsed.command == "chains-train":
+        _run_chains_train(parsed)
     elif parsed.command == "normalise":
         _run_normalise(parsed)
 
@@ -101,6 +120,24 @@ def _run_infer(parsed) -> None:
         config = InferConfig(**{k: v for k, v in overrides.items() if k in InferConfig.__dataclass_fields__})
 
     infer_main(config)
+
+
+def _run_chains_train(parsed) -> None:
+    from ifcb_classify.chains.config import ChainTrainConfig
+    from ifcb_classify.chains.train import train_chain_detector
+    from ifcb_classify.config import load_config
+
+    overrides = {k: v for k, v in vars(parsed).items() if k not in ("command", "config", "verbose") and v is not None}
+
+    if parsed.config:
+        config = load_config(parsed.config, ChainTrainConfig, overrides)
+    else:
+        if not parsed.class_name or not parsed.data:
+            raise SystemExit("Either --config or both --class-name and --data are required")
+        config = ChainTrainConfig(**{k: v for k, v in overrides.items() if k in ChainTrainConfig.__dataclass_fields__})
+
+    best = train_chain_detector(config)
+    print(f"Best weights: {best}")
 
 
 def _run_normalise(parsed) -> None:

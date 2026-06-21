@@ -60,6 +60,7 @@ uv pip install -e .
 ```bash
 uv pip install -e ".[mlflow]"   # MLflow support
 uv pip install -e ".[wandb]"    # Weights & Biases support
+uv pip install -e ".[chains]"   # YOLO chain counting (see below)
 uv pip install -e ".[dev]"      # Development tools
 ```
 
@@ -125,6 +126,76 @@ python -m ifcb_classify infer --config configs/infer_default.yaml
 
 Output is one `{sample}_class.h5` file per bin, compatible with the IFCB Dashboard, [iRfcb](https://europeanifcbgroup.github.io/iRfcb/) and [ClassiPyR](https://europeanifcbgroup.github.io/ClassiPyR/).
 
+### Chain counting (optional)
+
+Some plankton form chains of many cells in a single ROI (e.g. *Skeletonema*).
+For these taxa, classification alone tells you *what* the ROI is but not *how
+many* cells it contains. The optional chain-counting feature trains a small
+[YOLO](https://docs.ultralytics.com/) object detector **per taxon** that counts
+individual cells, and (during inference) stores the count alongside the
+classification result.
+
+Requires the `chains` extra:
+
+```bash
+uv pip install -e ".[chains]"
+```
+
+> Inference-time counting is documented separately once integrated; this
+> section covers training a detector.
+
+#### Training a detector for any chain-forming taxon
+
+Train one detector per taxon you want to count. This works for any chain-forming
+species — bring your own annotated data.
+
+```bash
+python -m ifcb_classify chains-train --config configs/chains_train_default.yaml
+```
+
+With CLI overrides (e.g. a larger model on a GPU):
+
+```bash
+python -m ifcb_classify chains-train \
+    --class-name Skeletonema --data /path/to/datasets/skeletonema \
+    --model yolo11x.pt --epochs 200 --device 0
+```
+
+The best checkpoint is written to `<project>/<name>/weights/best.pt`.
+
+**Dataset layout** — object detection needs *bounding boxes* around individual
+cells (the class-folder data used for classification has none), so ROIs must be
+annotated first (e.g. with [Label Studio](https://labelstud.io/),
+[CVAT](https://www.cvat.ai/), or [Roboflow](https://roboflow.com/)). Export in
+YOLO format:
+
+```
+datasets/skeletonema/
+  data.yaml                 # names + train/val image dirs
+  images/train/*.png        labels/train/*.txt   # one .txt of boxes per image
+  images/val/*.png          labels/val/*.txt
+```
+
+Each label `.txt` holds one line per cell: `class_id cx cy w h` (normalised
+0–1). With a single taxon per detector, `class_id` is always `0`. A `data.yaml`:
+
+```yaml
+path: /abs/path/to/datasets/skeletonema
+train: images/train
+val: images/val
+names:
+  0: skeletonema
+```
+
+`--data` accepts either a `data.yaml` file or a directory containing one
+(`data.local.yaml` is preferred over `data.yaml` when both exist).
+
+**Compute** — `yolo11n.pt` (nano) trains in ~hours on CPU and is a good starting
+point; use a larger model (`yolo11x.pt`) on a GPU (`--device 0`) for best
+accuracy. CUDA requires a CUDA build of PyTorch (see [With CUDA](#with-cuda)).
+
+See `configs/chains_train_default.yaml` for all options.
+
 ### Dataset normalisation
 
 Compute mean and std for normalised transforms:
@@ -179,6 +250,9 @@ src/ifcb_classify/
   plots.py               # Evaluation plots (static + interactive)
   checkpoint.py          # Best-model saving
   hdf5_output.py         # IFCB Dashboard v3 HDF5 writer
+  chains/                # Optional YOLO chain counting (requires [chains] extra)
+    config.py            # ChainTrainConfig
+    train.py             # Per-taxon YOLO detector training
   models/
     factory.py           # Model instantiation
     registry.py          # 40+ architecture definitions

@@ -46,6 +46,36 @@ def test_infer_parser_cli_only():
     assert args.output_dir == "/path/to/output"
 
 
+def test_chains_train_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "chains-train",
+        "--class-name", "Skeletonema",
+        "--data", "/data/skeletonema",
+        "--model", "yolo11x.pt",
+        "--epochs", "200",
+        "--device", "0",
+    ])
+    assert args.command == "chains-train"
+    assert args.class_name == "Skeletonema"
+    assert args.data == "/data/skeletonema"
+    assert args.model == "yolo11x.pt"
+    assert args.epochs == 200
+    assert args.device == "0"
+
+
+def test_chains_train_parser_with_config():
+    parser = build_parser()
+    args = parser.parse_args(["chains-train", "--config", "chains.yaml"])
+    assert args.command == "chains-train"
+    assert args.config == "chains.yaml"
+
+
+def test_run_cli_chains_train_missing_args_raises():
+    with pytest.raises(SystemExit, match="--config or both --class-name and --data"):
+        run_cli(["chains-train", "--class-name", "Skeletonema"])
+
+
 def test_normalise_parser():
     parser = build_parser()
     args = parser.parse_args(["normalise", "--data-dir", "/data"])
