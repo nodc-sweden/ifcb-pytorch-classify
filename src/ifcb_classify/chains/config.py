@@ -86,3 +86,41 @@ class ChainTrainConfig:
             raise ValueError(f"batch must be >= 1, got {self.batch}")
         if self.patience < 0:
             raise ValueError(f"patience must be >= 0, got {self.patience}")
+
+
+@dataclass(frozen=True)
+class ChainEvalConfig:
+    """Configuration for validating a chain detector's counts against manual counts.
+
+    ``counts_csv`` must have a filename column and an integer count column;
+    images are resolved by name under ``images``. Running the same ``weights``
+    against several species' test sets is how you check that one genus-level
+    detector generalises across species.
+    """
+
+    weights: str = ""
+    images: str = ""
+    counts_csv: str = ""
+    conf: float = 0.25
+    ious: tuple[float, ...] = (0.3, 0.5, 0.7)
+    limit: int = 0
+    output: str | None = None
+    file_col: str = "file_name"
+    count_col: str = "cell_count"
+
+    def __post_init__(self):
+        if not self.weights:
+            raise ValueError("weights is required")
+        if not self.images:
+            raise ValueError("images (directory of test images) is required")
+        if not self.counts_csv:
+            raise ValueError("counts_csv (CSV of manual counts) is required")
+        if not (0.0 <= self.conf <= 1.0):
+            raise ValueError(f"conf must be in [0, 1], got {self.conf}")
+        if not self.ious:
+            raise ValueError("at least one iou value is required")
+        for iou in self.ious:
+            if not (0.0 <= iou <= 1.0):
+                raise ValueError(f"iou values must be in [0, 1], got {iou}")
+        if self.limit < 0:
+            raise ValueError(f"limit must be >= 0, got {self.limit}")

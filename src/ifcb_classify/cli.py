@@ -70,6 +70,22 @@ def build_parser() -> argparse.ArgumentParser:
     chains_train_parser.add_argument("--name", help="Run name (default derived from class and model)")
     chains_train_parser.add_argument("-v", "--verbose", action="store_true")
 
+    # --- chains-eval ---
+    chains_eval_parser = subparsers.add_parser(
+        "chains-eval", help="Validate a chain detector's counts against manual counts"
+    )
+    chains_eval_parser.add_argument("--config", help="Path to chain-eval YAML config")
+    chains_eval_parser.add_argument("--weights", help="Path to detector weights (best.pt)")
+    chains_eval_parser.add_argument("--images", help="Directory of test images")
+    chains_eval_parser.add_argument("--counts-csv", dest="counts_csv", help="CSV of manual counts")
+    chains_eval_parser.add_argument("--conf", type=float, help="Confidence threshold")
+    chains_eval_parser.add_argument("--ious", help="Comma-separated NMS IoU values to sweep (e.g. 0.3,0.5,0.7)")
+    chains_eval_parser.add_argument("--limit", type=int, help="Evaluate only the first N images (0 = all)")
+    chains_eval_parser.add_argument("--output", help="Optional path to write per-image results CSV")
+    chains_eval_parser.add_argument("--file-col", dest="file_col", help="Filename column in the CSV")
+    chains_eval_parser.add_argument("--count-col", dest="count_col", help="Count column in the CSV")
+    chains_eval_parser.add_argument("-v", "--verbose", action="store_true")
+
     # --- normalise ---
     norm_parser = subparsers.add_parser("normalise", help="Compute dataset mean and std")
     norm_parser.add_argument("--data-dir", dest="data_dir", required=True)
@@ -94,6 +110,8 @@ def run_cli(args=None) -> None:
         _run_infer(parsed)
     elif parsed.command == "chains-train":
         _run_chains_train(parsed)
+    elif parsed.command == "chains-eval":
+        _run_chains_eval(parsed)
     elif parsed.command == "normalise":
         _run_normalise(parsed)
 
@@ -143,6 +161,35 @@ def _run_chains_train(parsed) -> None:
 
     best = train_chain_detector(config)
     print(f"Best weights: {best}")
+
+
+def _run_chains_eval(parsed) -> None:
+    from ifcb_classify.chains.config import ChainEvalConfig
+    from ifcb_classify.chains.eval import evaluate_counts
+    from ifcb_classify.config import load_config
+
+    overrides = {k: v for k, v in vars(parsed).items() if k not in ("command", "config", "verbose") and v is not None}
+    if isinstance(overrides.get("ious"), str):
+        overrides["ious"] = tuple(float(x) for x in overrides["ious"].split(","))
+
+    if parsed.config:
+        config = load_config(parsed.config, ChainEvalConfig, overrides)
+    else:
+        if not parsed.weights or not parsed.images or not parsed.counts_csv:
+            raise SystemExit("Either --config or all of --weights, --images and --counts-csv are required")
+        config = ChainEvalConfig(**{k: v for k, v in overrides.items() if k in ChainEvalConfig.__dataclass_fields__})
+
+    summary = evaluate_counts(config)
+    _print_eval_summary(summary)
+
+
+def _print_eval_summary(summary) -> None:
+    print(f"{'IoU':>5} {'MAE':>7} {'Bias':>7} {'Exact':>7} {'Within1':>8} {'Manual':>8} {'Pred':>8}")
+    for m in summary:
+        print(
+            f"{m['iou']:5.2f} {m['mae']:7.3f} {m['mean_bias']:7.2f} "
+            f"{m['exact_acc']:7.1%} {m['within1']:8.1%} {m['total_manual']:8d} {m['total_pred']:8d}"
+        )
 
 
 def _run_normalise(parsed) -> None:

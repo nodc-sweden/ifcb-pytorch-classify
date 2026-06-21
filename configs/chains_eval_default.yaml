@@ -1,0 +1,25 @@
+# Configuration for validating a chain detector's counts against manual counts.
+# Requires the 'chains' extra: uv pip install -e ".[chains]"
+#
+# Run the SAME weights against each species' test set to check whether one
+# genus-level detector generalises across species (compare the metrics).
+
+weights: output/chains/chains_skeletonema_yolo11n/weights/best.pt
+
+# Directory of test images, and a CSV of manual cell counts per image.
+images: /path/to/datasets/skeletonema/images/test
+counts_csv: /path/to/datasets/skeletonema/images/test/test_image_counts.csv
+
+# CSV column names (defaults shown):
+file_col: file_name
+count_col: cell_count
+
+# Confidence threshold and the NMS IoU values to sweep (pick the best per taxon).
+conf: 0.25
+ious: [0.3, 0.5, 0.7]
+
+# 0 = evaluate all images.
+limit: 0
+
+# Optional: write per-image predictions/diffs for inspection.
+# output: output/chains/skeletonema_eval.csv

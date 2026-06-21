@@ -227,6 +227,30 @@ where not counted) and a `chain_counter_models` JSON attribute recording the
 weights/IoU/conf used. Existing consumers ignore the extra dataset. See
 `configs/infer_with_chains.yaml` for a full example.
 
+#### Validating count accuracy
+
+`chains-eval` compares a detector's predicted counts against manual counts and
+sweeps the NMS IoU so you can pick the best value per taxon. Provide a directory
+of test images and a CSV with a filename column and an integer count column
+(`file_name,cell_count`):
+
+```bash
+python -m ifcb_classify chains-eval \
+    --weights output/chains/chains_skeletonema_yolo11n/weights/best.pt \
+    --images /path/to/test_images \
+    --counts-csv /path/to/test_image_counts.csv \
+    --ious 0.3,0.5,0.7
+```
+
+It reports MAE, mean bias, exact-match and within-±1 accuracy, and total counts
+per IoU. Add `--output results.csv` for per-image predictions.
+
+**Checking one detector across species** — to verify that a single genus-level
+detector generalises (rather than training per species), run the *same*
+`--weights` against each species' test set and compare the metrics. Train a
+dedicated detector only if a particular species shows high error. See
+`configs/chains_eval_default.yaml`.
+
 ### Dataset normalisation
 
 Compute mean and std for normalised transforms:
@@ -282,9 +306,10 @@ src/ifcb_classify/
   checkpoint.py          # Best-model saving
   hdf5_output.py         # IFCB Dashboard v3 HDF5 writer
   chains/                # Optional YOLO chain counting (requires [chains] extra)
-    config.py            # ChainTrainConfig + ChainCountingConfig
+    config.py            # ChainTrainConfig + ChainCountingConfig + ChainEvalConfig
     train.py             # Per-taxon YOLO detector training
     counter.py           # Per-taxon cell counting at inference time
+    eval.py              # Count-accuracy validation + IoU sweep
   models/
     factory.py           # Model instantiation
     registry.py          # 40+ architecture definitions

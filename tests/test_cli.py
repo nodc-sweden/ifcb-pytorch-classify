@@ -76,6 +76,28 @@ def test_run_cli_chains_train_missing_args_raises():
         run_cli(["chains-train", "--class-name", "Skeletonema"])
 
 
+def test_chains_eval_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "chains-eval",
+        "--weights", "best.pt",
+        "--images", "/data/test",
+        "--counts-csv", "/data/test/counts.csv",
+        "--ious", "0.3,0.5",
+        "--limit", "50",
+    ])
+    assert args.command == "chains-eval"
+    assert args.weights == "best.pt"
+    assert args.counts_csv == "/data/test/counts.csv"
+    assert args.ious == "0.3,0.5"
+    assert args.limit == 50
+
+
+def test_run_cli_chains_eval_missing_args_raises():
+    with pytest.raises(SystemExit, match="--config or all of --weights, --images and --counts-csv"):
+        run_cli(["chains-eval", "--weights", "best.pt"])
+
+
 def test_normalise_parser():
     parser = build_parser()
     args = parser.parse_args(["normalise", "--data-dir", "/data"])
