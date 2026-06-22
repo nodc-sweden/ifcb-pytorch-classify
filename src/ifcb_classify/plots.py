@@ -84,6 +84,7 @@ def generate_evaluation_plots(
 
 
 def _plot_training_curves(plots_dir: Path, epoch_metrics: list[dict]) -> list[Path]:
+    """Plot train/validation loss and accuracy versus epoch (side-by-side panels)."""
     if not epoch_metrics:
         return []
 
@@ -124,6 +125,11 @@ def _plot_per_class_f1_bar(
     class_metrics: dict,
     tail_n: int = 20,
 ) -> list[Path]:
+    """Horizontal bar chart of per-class F1, sorted.
+
+    With many classes, only the ``tail_n`` worst and ``tail_n`` best are shown
+    (separated by a dashed line) to keep the figure legible.
+    """
     sorted_items = sorted(class_metrics.items(), key=lambda x: x[1]["f1"])
     num_classes = len(sorted_items)
 
@@ -164,6 +170,7 @@ def _plot_per_class_f1_bar(
 
 
 def _plot_precision_recall_scatter(plots_dir: Path, class_metrics: dict) -> list[Path]:
+    """Scatter per-class precision vs. recall, sized/coloured by class support."""
     precisions = []
     recalls = []
     supports = []
@@ -194,6 +201,7 @@ def _plot_precision_recall_scatter(plots_dir: Path, class_metrics: dict) -> list
 
 
 def _plot_class_support_histogram(plots_dir: Path, class_metrics: dict) -> list[Path]:
+    """Histogram of class support (samples per class) to reveal dataset imbalance."""
     supports = [m["support"] for m in class_metrics.values()]
 
     fig, ax = plt.subplots(figsize=(8, 4))
@@ -215,6 +223,11 @@ def _plot_top_confused_pairs(
     class_names: list[str],
     top_k: int = 25,
 ) -> list[Path]:
+    """Bar chart of the ``top_k`` most-confused (true → predicted) class pairs.
+
+    Confusion is ranked by row-normalised rate (so rare classes are compared
+    fairly), with the raw ``count/support`` annotated on each bar.
+    """
     # Row-normalize so that imbalanced classes are compared fairly
     row_sums = confusion_matrix.sum(axis=1, keepdims=True).astype(float)
     row_sums = np.where(row_sums == 0, 1.0, row_sums)
@@ -288,6 +301,11 @@ def _plot_interactive_confusion_matrix(
     confusion_matrix: np.ndarray,
     class_names: list[str],
 ) -> list[Path]:
+    """Write an interactive HTML confusion matrix (row-normalised % / raw toggle).
+
+    Axes use integer class indices to stay legible at hundreds of classes; full
+    class names appear on hover. Requires plotly.
+    """
     import plotly.graph_objects as go
 
     # Row-normalize: each cell becomes fraction of true class support
@@ -382,6 +400,7 @@ def _plot_interactive_confusion_matrix(
 
 
 def _plot_interactive_metrics_table(plots_dir: Path, class_metrics: dict) -> list[Path]:
+    """Write an interactive HTML table of per-class F1/precision/recall/support/threshold."""
     import plotly.graph_objects as go
 
     sorted_metrics = sorted(class_metrics.values(), key=lambda m: m["f1"], reverse=True)

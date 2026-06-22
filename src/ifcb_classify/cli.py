@@ -1,8 +1,25 @@
+"""Command-line interface: argument parsing and command dispatch.
+
+This module defines the ``ifcb-classify`` CLI (also reachable as
+``python -m ifcb_classify``). :func:`build_parser` declares the five
+subcommands — ``train``, ``infer``, ``chains-train``, ``chains-eval`` and
+``normalise`` — and :func:`run_cli` dispatches the parsed arguments to a small
+``_run_*`` handler per command.
+
+Each handler resolves a config object from a ``--config`` YAML file and/or CLI
+overrides, then calls into the matching pipeline module. Heavy imports (torch,
+ultralytics, the pipeline modules) are deferred into the handlers so that
+``--help`` and argument parsing stay fast and don't require optional extras.
+Only CLI flags that the user actually set (non-``None``) become config
+overrides, so YAML defaults are preserved.
+"""
+
 import argparse
 import logging
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the top-level argument parser with one subparser per command."""
     parser = argparse.ArgumentParser(prog="ifcb-classify", description="IFCB image classification pipeline")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -98,6 +115,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_cli(args=None) -> None:
+    """Parse ``args`` (defaults to ``sys.argv``), configure logging, and dispatch.
+
+    ``-v/--verbose`` raises the log level to DEBUG. Each command routes to its
+    ``_run_*`` handler.
+    """
     parser = build_parser()
     parsed = parser.parse_args(args)
 
@@ -117,6 +139,7 @@ def run_cli(args=None) -> None:
 
 
 def _run_train(parsed) -> None:
+    """Handle ``train``: load the training config (with CLI overrides) and run it."""
     from ifcb_classify.config import TrainConfig, load_config
     from ifcb_classify.train import train_main
 
@@ -126,6 +149,12 @@ def _run_train(parsed) -> None:
 
 
 def _run_infer(parsed) -> None:
+    """Handle ``infer``: build the inference config and run the pipeline.
+
+    Accepts either a ``--config`` file or the ``--input``/``--model`` pair. The
+    ``--no-count`` flag strips any ``chain_counting`` block so counting is
+    skipped even when the config enables it.
+    """
     from ifcb_classify.config import InferConfig, load_config
     from ifcb_classify.infer import infer_main
 
@@ -146,6 +175,10 @@ def _run_infer(parsed) -> None:
 
 
 def _run_chains_train(parsed) -> None:
+    """Handle ``chains-train``: train one YOLO detector and print the best weights.
+
+    Accepts either a ``--config`` file or the ``--class-name``/``--data`` pair.
+    """
     from ifcb_classify.chains.config import ChainTrainConfig
     from ifcb_classify.chains.train import train_chain_detector
     from ifcb_classify.config import load_config
@@ -164,6 +197,12 @@ def _run_chains_train(parsed) -> None:
 
 
 def _run_chains_eval(parsed) -> None:
+    """Handle ``chains-eval``: evaluate a detector and print the per-IoU summary.
+
+    The comma-separated ``--ious`` string is parsed into a tuple of floats before
+    building the config. Accepts either ``--config`` or all of
+    ``--weights``/``--images``/``--counts-csv``.
+    """
     from ifcb_classify.chains.config import ChainEvalConfig
     from ifcb_classify.chains.eval import evaluate_counts
     from ifcb_classify.config import load_config
@@ -184,6 +223,7 @@ def _run_chains_eval(parsed) -> None:
 
 
 def _print_eval_summary(summary) -> None:
+    """Print the chain-eval per-IoU metrics as an aligned text table."""
     print(f"{'IoU':>5} {'MAE':>7} {'Bias':>7} {'Exact':>7} {'Within1':>8} {'Manual':>8} {'Pred':>8}")
     for m in summary:
         print(
@@ -193,6 +233,7 @@ def _print_eval_summary(summary) -> None:
 
 
 def _run_normalise(parsed) -> None:
+    """Handle ``normalise``: compute and print the dataset mean and std."""
     from ifcb_classify.normalise import compute_dataset_stats
 
     mean, std = compute_dataset_stats(

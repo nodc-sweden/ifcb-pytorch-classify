@@ -1,3 +1,20 @@
+"""Inference pipeline: classify raw IFCB bins and write HDF5 class-score files.
+
+``infer_main`` is the entry point the CLI calls for the ``infer`` command. Given
+a trained checkpoint and an input path (a single bin or a directory of bins) it:
+
+1. skips work early if every bin already has an output file (unless ``overwrite``);
+2. loads the model and rebuilds the exact transform used at training time;
+3. resolves per-class decision thresholds and, optionally, a chain counter;
+4. runs batched softmax inference over each bin's ROIs; and
+5. writes one ``{sample}_class.h5`` per bin in IFCB Dashboard class_scores v3
+   format (see :mod:`ifcb_classify.hdf5_output`).
+
+The private ``_classify_*`` / ``_batch_predict`` / ``_write_output`` helpers carry
+a long positional argument list; this is deliberate to keep a single linear data
+path through the pipeline rather than threading a context object.
+"""
+
 import logging
 from pathlib import Path
 
@@ -18,6 +35,13 @@ logger = logging.getLogger(__name__)
 
 
 def infer_main(config: InferConfig) -> None:
+    """Run inference from a resolved :class:`InferConfig`.
+
+    Loads the model only after confirming there is pending work, then dispatches
+    to the single-file or directory classifier depending on ``input_path``.
+    Raises :class:`FileNotFoundError` if the input path is neither a file nor a
+    directory.
+    """
     if config.num_threads is not None:
         torch.set_num_threads(config.num_threads)
         logger.info("CPU threads limited to %d", config.num_threads)
@@ -116,12 +140,19 @@ def _has_pending_bins(input_path: Path, output_dir: Path) -> bool:
 
 
 def _output_path_for_lid(output_dir: Path, lid: str) -> Path:
+    """Return the output ``{lid}_class.h5`` path for a bin LID."""
     return output_dir / f"{lid}_class.h5"
 
 
 def _classify_bin_file(
     bin_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, counter=None
 ):
+    """Classify a single bin file and write its HDF5 output.
+
+    Skips silently if the output already exists and ``overwrite`` is false. When
+    ``counter`` is provided, the untransformed PIL images are also collected so
+    the chain counter can run on them.
+    """
     lid = get_bin_lid(bin_path)
     out_path = _output_path_for_lid(output_dir, lid)
 
@@ -151,6 +182,11 @@ def _classify_bin_file(
 def _classify_directory(
     dir_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, counter=None
 ):
+    """Classify every bin in a directory, skipping ones already classified.
+
+    Each bin is opened with a context manager so its file handles are released
+    before moving on — important when scanning large directories of bins.
+    """
     for lid, fbin in iter_directory_bins(dir_path):
         out_path = _output_path_for_lid(output_dir, lid)
 
@@ -179,6 +215,11 @@ def _classify_directory(
 
 
 def _batch_predict(model, images, device, batch_size):
+    """Run the model over pre-transformed images in batches.
+
+    Returns an ``(N, num_classes)`` float array of softmax probabilities, moved
+    back to the CPU and concatenated across batches.
+    """
     all_scores = []
     with torch.no_grad():
         for i in range(0, len(images), batch_size):
@@ -190,6 +231,7 @@ def _batch_predict(model, images, device, batch_size):
 
 
 def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, counter=None, raw_images=None):
+    """Compute optional chain counts and write the HDF5 class-scores file for a bin."""
     roi_numbers = np.array(target_numbers, dtype=np.int32)
     chain_counts, models_meta = _compute_chain_counts(scores, class_names, thresholds, counter, raw_images)
     output_path = _output_path_for_lid(output_dir, lid)
@@ -226,6 +268,13 @@ def _compute_chain_counts(scores, class_names, thresholds, counter, raw_images):
 
 
 def _load_thresholds(config: InferConfig, class_names: list[str]) -> np.ndarray:
+    """Resolve per-class decision thresholds, ordered to match ``class_names``.
+
+    Resolution order: an explicit ``thresholds_path`` (JSON or YAML), else a
+    ``thresholds.json`` auto-detected next to the checkpoint, else a flat array
+    of ``config.threshold_default`` for every class. Classes absent from a file
+    get ``NaN``, which downstream code treats as "no threshold" (accept argmax).
+    """
     path = config.thresholds_path
 
     # Auto-detect thresholds.json from model directory
@@ -248,6 +297,11 @@ def _load_thresholds(config: InferConfig, class_names: list[str]) -> np.ndarray:
 
 
 def _derive_classifier_name(config: InferConfig, train_config: dict) -> str:
+    """Derive the classifier name stored in the output when none was configured.
+
+    Prefers the checkpoint's parent directory name; falls back to
+    ``{model}_{dataset_version}`` for legacy checkpoints saved at the repo root.
+    """
     # For legacy checkpoints, use the model directory name
     model_dir = Path(config.model_checkpoint).parent
     dir_name = model_dir.name

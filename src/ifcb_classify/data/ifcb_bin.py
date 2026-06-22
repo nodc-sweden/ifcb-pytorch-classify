@@ -1,3 +1,13 @@
+"""Thin wrapper over pyifcb for reading ROIs out of raw IFCB bins.
+
+A raw IFCB bin is a three-file set (``.adc``/``.roi``/``.hdr``) sharing one base
+name (the *LID*, which encodes the instrument and timestamp). These helpers
+isolate the rest of the pipeline from the ``ifcb`` package: they yield decoded
+RGB images per ROI, iterate the bins in a directory, and extract a bin's LID
+from any of its file paths. The ``ifcb`` import is deferred into the functions so
+importing this module is cheap and doesn't hard-require pyifcb.
+"""
+
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -22,6 +32,7 @@ def iter_bin_images(bin_source) -> Iterator[tuple[int, Image.Image]]:
 
 
 def _iter_images_from_bin(fbin) -> Iterator[tuple[int, Image.Image]]:
+    """Yield ``(target_number, RGB image)`` from an already-opened pyifcb bin."""
     for target_num in fbin.images.index:
         arr = fbin.images[target_num]
         img = Image.fromarray(np.asarray(arr, dtype=np.uint8))

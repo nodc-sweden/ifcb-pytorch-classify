@@ -1,3 +1,13 @@
+"""Multiclass evaluation metrics accumulated over a validation epoch.
+
+:class:`MetricsCalculator` wraps the relevant ``torcheval`` streaming metrics so
+the training loop can ``update`` it batch by batch and ``compute`` a single
+:class:`MetricsResult` at the end of an epoch, then ``reset`` for the next one.
+Note the two F1 variants: ``f1`` is macro-averaged (every class weighted
+equally) and ``weighted_f1`` is support-weighted — the latter is the default
+checkpoint metric because the IFCB classes are highly imbalanced.
+"""
+
 from dataclasses import dataclass
 
 import torch
@@ -14,6 +24,8 @@ from torcheval.metrics import (
 
 @dataclass(frozen=True)
 class MetricsResult:
+    """Immutable snapshot of all metrics computed for one validation epoch."""
+
     accuracy: float
     precision: float
     recall: float
@@ -25,7 +37,14 @@ class MetricsResult:
 
 
 class MetricsCalculator:
+    """Streaming accumulator for multiclass metrics over a validation epoch.
+
+    Usage: ``update`` per batch, ``compute`` once at epoch end, then ``reset``
+    before the next epoch.
+    """
+
     def __init__(self, num_classes: int):
+        """Create the underlying streaming metric objects for ``num_classes`` classes."""
         self.num_classes = num_classes
         self._accuracy = MulticlassAccuracy(average="micro", num_classes=num_classes)
         self._precision = MulticlassPrecision(num_classes=num_classes)
@@ -37,6 +56,11 @@ class MetricsCalculator:
         self._confusion = MulticlassConfusionMatrix(num_classes=num_classes)
 
     def update(self, preds: torch.Tensor, labels: torch.Tensor) -> None:
+        """Accumulate one batch of logits/probabilities ``preds`` against ``labels``.
+
+        Argmax classes feed the label-based metrics; the full ``preds`` scores
+        feed AUPRC/AUROC, which need per-class probabilities.
+        """
         pred_classes = preds.argmax(dim=1)
         self._accuracy.update(pred_classes, labels)
         self._precision.update(pred_classes, labels)
@@ -48,6 +72,7 @@ class MetricsCalculator:
         self._auroc.update(preds, labels)
 
     def compute(self) -> MetricsResult:
+        """Finalise all accumulated metrics into a :class:`MetricsResult`."""
         return MetricsResult(
             accuracy=self._accuracy.compute().item(),
             precision=self._precision.compute().item(),
@@ -60,6 +85,7 @@ class MetricsCalculator:
         )
 
     def reset(self) -> None:
+        """Clear all accumulated state so the calculator can be reused next epoch."""
         self._accuracy.reset()
         self._precision.reset()
         self._recall.reset()

@@ -1,3 +1,18 @@
+"""Dataset construction and the named image-transform pipelines.
+
+Two things live here:
+
+* :func:`build_transform` — turns a transform *name* (one of
+  :data:`TRANSFORM_NAMES`) into a torchvision ``Compose``. Names encode three
+  independent choices: padding strategy (none / ``squarepad`` / ``fullpad`` /
+  ``reflectpad``), whether augmentation is applied, and whether the result is
+  normalised (which requires precomputed ``mean``/``std`` from the ``normalise``
+  command). The same name must be used at train and inference time.
+* :func:`create_training_datasets` — wraps an ``ImageFolder`` (class-per-folder
+  layout) and splits it into train/validation ``Subset``s, optionally first
+  filtering out rare classes via :func:`filter_classes`.
+"""
+
 import logging
 import os
 import shutil
@@ -45,6 +60,14 @@ def build_transform(
     mean: float | None = None,
     std: float | None = None,
 ) -> transforms.Compose:
+    """Build the torchvision transform pipeline named ``name``.
+
+    All variants first convert to 3-channel grayscale float tensors (IFCB images
+    are single-channel, but the pretrained backbones expect RGB). ``_normalised``
+    variants require ``mean`` and ``std`` and append a ``Normalize`` step;
+    ``_augmented`` variants insert colour-jitter and random flips. Raises
+    ``ValueError`` for an unknown name (see :data:`TRANSFORM_NAMES`).
+    """
     grayscale = transforms.Grayscale(num_output_channels=3)
     base = [
         grayscale,
@@ -187,6 +210,13 @@ def create_training_datasets(
     min_class_images: int | None = None,
     manual_include_classes: list[str] | None = None,
 ) -> dict:
+    """Build train/validation datasets from a class-per-folder image directory.
+
+    When ``min_class_images`` is set, rare classes are first filtered out (see
+    :func:`filter_classes`). The split is deterministic given ``seed``. Returns a
+    dict with ``train`` / ``val`` (``Subset``s), ``class_names`` and
+    ``num_classes``.
+    """
     effective_dir = data_dir
     if min_class_images is not None:
         effective_dir, _ = filter_classes(data_dir, min_class_images, manual_include_classes)
@@ -203,5 +233,6 @@ def create_training_datasets(
 
 
 def _require_stats(mean, std, name):
+    """Raise a helpful error if a normalised transform was requested without stats."""
     if mean is None or std is None:
         raise ValueError(f"Transform '{name}' requires mean and std. Run `ifcb-classify normalise` first.")

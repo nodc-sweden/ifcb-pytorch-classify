@@ -1,3 +1,13 @@
+"""Validating a chain detector's counts against manual counts.
+
+Backs the ``chains-eval`` command. Given a detector and a CSV of manual
+per-image counts, :func:`evaluate_counts` sweeps the NMS IoU threshold and
+reports count-accuracy metrics (MAE, bias, exact/within-1 accuracy, totals) per
+IoU so the best value can be chosen per taxon. Running the same weights against
+several species' test sets is how you check whether one genus-level detector
+generalises. ``ultralytics`` is imported lazily.
+"""
+
 import csv
 import logging
 from pathlib import Path
@@ -94,6 +104,7 @@ def evaluate_counts(config: ChainEvalConfig) -> list[dict]:
 
 
 def _write_results_csv(output: str, rows, manual, per_iou_preds) -> None:
+    """Write per-image counts: filename, manual count, and pred/diff per IoU."""
     ious = sorted(per_iou_preds)
     header = ["file_name", "manual_count"]
     for iou in ious:

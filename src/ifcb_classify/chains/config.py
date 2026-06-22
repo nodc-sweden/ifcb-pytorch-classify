@@ -1,3 +1,13 @@
+"""Configuration dataclasses for the chain-counting feature.
+
+Three configs, one per chain-counting workflow: :class:`ChainTrainConfig`
+(``chains-train``), :class:`ChainEvalConfig` (``chains-eval``) and
+:class:`ChainCountingConfig` (the inference-time ``chain_counting`` YAML block,
+built via :meth:`ChainCountingConfig.from_dict`). A :class:`ChainModelSpec`
+describes one per-taxon detector (weights + NMS/confidence thresholds). All are
+frozen and validate their fields on construction.
+"""
+
 from dataclasses import dataclass, field
 
 DEFAULT_IOU = 0.3
@@ -28,6 +38,13 @@ class ChainCountingConfig:
 
     @classmethod
     def from_dict(cls, data: dict) -> "ChainCountingConfig":
+        """Build a config from a raw ``chain_counting`` YAML block.
+
+        Each ``models`` entry may be either a weights-path string or a mapping
+        with ``weights`` and optional ``iou``/``conf`` overrides; top-level
+        ``iou``/``conf`` supply the defaults. Validates that thresholds are in
+        ``[0, 1]`` and that an enabled block actually configures a detector.
+        """
         enabled = bool(data.get("enabled", False))
         default_iou = float(data.get("iou", DEFAULT_IOU))
         default_conf = float(data.get("conf", DEFAULT_CONF))
@@ -74,6 +91,7 @@ class ChainTrainConfig:
     name: str | None = None
 
     def __post_init__(self):
+        """Validate required fields and numeric ranges for detector training."""
         if not self.class_name:
             raise ValueError("class_name is required")
         if not self.data:
@@ -109,6 +127,7 @@ class ChainEvalConfig:
     count_col: str = "cell_count"
 
     def __post_init__(self):
+        """Validate required paths and that conf/IoU values lie in ``[0, 1]``."""
         if not self.weights:
             raise ValueError("weights is required")
         if not self.images:

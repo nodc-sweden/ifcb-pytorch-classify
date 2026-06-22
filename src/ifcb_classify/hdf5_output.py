@@ -1,3 +1,14 @@
+"""Writer for IFCB Dashboard ``class_scores`` v3 HDF5 output files.
+
+One ``{sample}_class.h5`` file is produced per bin. The format is consumed by
+the IFCB Dashboard, iRfcb and ClassiPyR, so the dataset names and dtypes here
+must stay stable. :func:`resolve_class_names` applies per-class thresholds to
+turn raw scores into final labels (falling back to ``"unclassified"``), and
+:func:`write_class_scores` writes the datasets. The optional ``chain_count``
+dataset is additive — existing consumers ignore unknown datasets, so writing it
+stays backward compatible.
+"""
+
 import json
 from pathlib import Path
 

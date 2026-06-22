@@ -1,3 +1,13 @@
+"""Inference-time cell counting with per-taxon YOLO detectors.
+
+:class:`ChainCounter` is constructed once per inference run from a
+:class:`ChainCountingConfig` and used by :mod:`ifcb_classify.infer` to count
+cells in ROIs whose (thresholded) class is configured for counting. Detectors
+are loaded lazily and cached, and ``ultralytics`` is imported only on first use,
+so the core classifier never pays for the chains dependency unless counting
+actually runs.
+"""
+
 import logging
 from pathlib import Path
 
@@ -19,6 +29,12 @@ class ChainCounter:
     """
 
     def __init__(self, config: ChainCountingConfig):
+        """Validate up front that every configured weights file exists.
+
+        Failing here (rather than lazily on first use) means a misconfigured path
+        is reported before any bins are processed. Raises ``FileNotFoundError``
+        listing the missing detectors.
+        """
         self._config = config
         self._models: dict[str, object] = {}
 
@@ -39,6 +55,11 @@ class ChainCounter:
         }
 
     def _get_model(self, class_name: str):
+        """Return the cached YOLO model for ``class_name``, loading it on first use.
+
+        Imports ``ultralytics`` lazily and raises ``ImportError`` with an install
+        hint if the ``chains`` extra is missing.
+        """
         if class_name not in self._models:
             try:
                 from ultralytics import YOLO

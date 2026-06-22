@@ -1,3 +1,13 @@
+"""Model instantiation: build a torchvision backbone with a fresh classifier head.
+
+:func:`get_model` looks a name up in the :data:`MODELS` registry, constructs the
+pretrained backbone, and swaps its final layer for a new ``nn.Linear`` sized to
+``num_classes``. Because different architectures name their head differently
+(``fc``, ``classifier[6]``, ``heads[0]`` …), the registry stores a *path string*
+and the small ``_set_head`` helper resolves and replaces it. The special name
+``custom`` builds a tiny from-scratch CNN instead.
+"""
+
 import re
 
 import torch.nn as nn
@@ -18,6 +28,7 @@ def _set_head(model: nn.Module, path: str, layer: nn.Module) -> None:
 
 
 def _resolve_part(obj, part: str):
+    """Read one path segment off ``obj`` — attribute, or ``attr[idx]`` for a list."""
     match = re.match(r"(\w+)\[(\d+)]", part)
     if match:
         attr, idx = match.group(1), int(match.group(2))
@@ -26,6 +37,7 @@ def _resolve_part(obj, part: str):
 
 
 def _assign_part(obj, part: str, value: nn.Module) -> None:
+    """Assign ``value`` to one path segment of ``obj`` (attribute or ``attr[idx]``)."""
     match = re.match(r"(\w+)\[(\d+)]", part)
     if match:
         attr, idx = match.group(1), int(match.group(2))
@@ -35,6 +47,13 @@ def _assign_part(obj, part: str, value: nn.Module) -> None:
 
 
 def get_model(name: str, num_classes: int) -> nn.Module:
+    """Build the model ``name`` with a ``num_classes``-wide classification head.
+
+    Looks ``name`` up in :data:`MODELS` (case-insensitively), instantiates the
+    backbone with its default pretrained weights (unless the spec sets
+    ``weights=None``), and replaces the head. ``name="custom"`` returns the
+    bundled small CNN. Raises ``ValueError`` for an unknown name.
+    """
     if name == "custom":
         return _build_custom(num_classes)
 
@@ -52,6 +71,7 @@ def get_model(name: str, num_classes: int) -> nn.Module:
 
 
 def _build_custom(num_classes: int) -> nn.Module:
+    """Build the bundled small from-scratch CNN (a LeNet-style baseline)."""
     return nn.Sequential(
         nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5),
         nn.ReLU(),

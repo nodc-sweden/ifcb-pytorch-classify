@@ -1,3 +1,14 @@
+"""Per-class decision thresholds derived from the validation set.
+
+A single global cutoff is wrong for imbalanced multiclass data, so after each
+best epoch the pipeline computes an F1-optimal threshold *per class* from the
+precision-recall curve (:func:`compute_optimal_thresholds`), saves them with
+metrics and a ``classes.txt`` (:func:`save_thresholds_and_metrics`), and at
+inference time loads them back (:func:`load_thresholds_json`). ROIs whose top
+score falls below the class threshold are labelled ``"unclassified"`` (see
+:mod:`ifcb_classify.hdf5_output`).
+"""
+
 import json
 import logging
 from pathlib import Path

@@ -1,3 +1,11 @@
+"""Training a single-class YOLO chain-counting detector for one taxon.
+
+Backs the ``chains-train`` command. Each detector is a single-class "cell vs.
+not-cell" object detector trained from YOLO-format annotations; one is trained
+per chain-forming taxon. ``ultralytics`` is imported lazily so the core package
+doesn't require the ``chains`` extra.
+"""
+
 import logging
 from pathlib import Path
 
