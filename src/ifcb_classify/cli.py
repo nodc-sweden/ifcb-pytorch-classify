@@ -1,8 +1,8 @@
 """Command-line interface: argument parsing and command dispatch.
 
 This module defines the ``ifcb-classify`` CLI (also reachable as
-``python -m ifcb_classify``). :func:`build_parser` declares the five
-subcommands — ``train``, ``infer``, ``chains-train``, ``chains-eval`` and
+``python -m ifcb_classify``). :func:`build_parser` declares the subcommands —
+``train``, ``infer``, ``chains-count``, ``chains-train``, ``chains-eval`` and
 ``normalise`` — and :func:`run_cli` dispatches the parsed arguments to a small
 ``_run_*`` handler per command.
 
@@ -70,6 +70,18 @@ def build_parser() -> argparse.ArgumentParser:
     infer_parser.add_argument("--no-count", dest="no_count", action="store_true", default=False, help="Disable chain counting even if enabled in the config")
     infer_parser.add_argument("-v", "--verbose", action="store_true")
 
+    # --- chains-count ---
+    chains_count_parser = subparsers.add_parser(
+        "chains-count",
+        help="Add chain counts to already-classified bins without re-running the classifier",
+    )
+    chains_count_parser.add_argument("--config", help="Path to inference YAML config (with a chain_counting block)")
+    chains_count_parser.add_argument("--input", dest="input_path", help="Path to raw bin file or directory (for ROI pixels)")
+    chains_count_parser.add_argument("--output", dest="output_dir", help="Directory of existing *_class.h5 files to update")
+    chains_count_parser.add_argument("--overwrite", action="store_true", default=False, help="Re-count files that already have chain counts")
+    chains_count_parser.add_argument("--num-threads", dest="num_threads", type=int, help="Limit CPU threads (default: all cores)")
+    chains_count_parser.add_argument("-v", "--verbose", action="store_true")
+
     # --- chains-train ---
     chains_train_parser = subparsers.add_parser(
         "chains-train", help="Train a YOLO chain-counting detector for a chain-forming taxon"
@@ -130,6 +142,8 @@ def run_cli(args=None) -> None:
         _run_train(parsed)
     elif parsed.command == "infer":
         _run_infer(parsed)
+    elif parsed.command == "chains-count":
+        _run_chains_count(parsed)
     elif parsed.command == "chains-train":
         _run_chains_train(parsed)
     elif parsed.command == "chains-eval":
@@ -172,6 +186,29 @@ def _run_infer(parsed) -> None:
         config = replace(config, chain_counting=None)
 
     infer_main(config)
+
+
+def _run_chains_count(parsed) -> None:
+    """Handle ``chains-count``: backfill chain counts onto existing class-score files.
+
+    Reuses the inference config (``input_path`` = raw bins, ``output_dir`` = the
+    directory of existing ``*_class.h5`` files, plus the ``chain_counting``
+    block). Accepts either a ``--config`` file or the ``--input``/``--output``
+    pair; an enabled ``chain_counting`` block is required either way.
+    """
+    from ifcb_classify.chains.count import count_main
+    from ifcb_classify.config import InferConfig, load_config
+
+    overrides = {k: v for k, v in vars(parsed).items() if k not in ("command", "config", "verbose") and v is not None}
+
+    if parsed.config:
+        config = load_config(parsed.config, InferConfig, overrides)
+    else:
+        if not parsed.input_path or not parsed.output_dir:
+            raise SystemExit("Either --config or both --input and --output are required")
+        config = InferConfig(**{k: v for k, v in overrides.items() if k in InferConfig.__dataclass_fields__})
+
+    count_main(config)
 
 
 def _run_chains_train(parsed) -> None:

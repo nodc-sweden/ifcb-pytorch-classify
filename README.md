@@ -227,6 +227,30 @@ where not counted) and a `chain_counter_models` JSON attribute recording the
 weights/IoU/conf used. Existing consumers ignore the extra dataset. See
 `configs/infer_with_chains.yaml` for a full example.
 
+#### Counting on already-classified bins
+
+If you already have `_class.h5` files and only want to add (or refresh) counts —
+e.g. after training a new detector — use `chains-count` instead of re-running
+`infer`. It reuses the stored `class_name` to decide which ROIs to count, so it
+**skips the classifier entirely** and only runs the detector on the matching
+ROIs, reading their pixels from the raw bins:
+
+```bash
+# Reuse the same inference config (input_path = raw bins, output_dir = the
+# directory of existing *_class.h5 files, plus the chain_counting block):
+python -m ifcb_classify chains-count --config configs/infer_with_chains.yaml
+
+# Or point at the two directories directly:
+python -m ifcb_classify chains-count \
+    --input /path/to/raw/bins \
+    --output output/class_scores \
+    --config configs/infer_with_chains.yaml   # still needed for the detector block
+```
+
+Each file's `chain_count` dataset is written in place. Files that already carry
+counts are skipped unless you pass `--overwrite`. The raw bins are still required
+(the `.h5` stores scores, not pixels), but the expensive ResNet pass is avoided.
+
 #### Validating count accuracy
 
 `chains-eval` compares a detector's predicted counts against manual counts and
