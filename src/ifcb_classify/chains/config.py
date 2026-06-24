@@ -81,7 +81,7 @@ class ChainTrainConfig:
 
     class_name: str = ""
     data: str = ""
-    model: str = "yolo11n.pt"
+    model: str = "yolo11s.pt"
     epochs: int = 100
     imgsz: int = 640
     batch: int = 16

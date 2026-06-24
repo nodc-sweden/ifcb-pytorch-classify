@@ -13,9 +13,10 @@ class_name: Skeletonema
 #     images/val/*.png     labels/val/*.txt
 data: /path/to/datasets/skeletonema
 
-# Pretrained YOLO weights to fine-tune. Nano (yolo11n.pt) is fast and CPU-friendly;
-# use a larger model (e.g. yolo11x.pt) on a GPU for best accuracy.
-model: yolo11n.pt
+# Pretrained YOLO weights to fine-tune. Small (yolo11s.pt) is a good default and
+# fits an 8 GB GPU at imgsz 640 / batch 16. Drop to yolo11n.pt for CPU/very low
+# VRAM, or step up to yolo11x.pt on a large GPU (>=24 GB) for best accuracy.
+model: yolo11s.pt
 
 epochs: 100
 imgsz: 640
@@ -29,4 +30,4 @@ patience: 20
 
 # Output directory for training runs (weights land under <project>/<name>/weights/best.pt).
 project: output/chains
-# name: chains_Skeletonema_yolo11n   # optional; derived from class + model if unset
+# name: chains_Skeletonema_yolo11s   # optional; derived from class + model if unset

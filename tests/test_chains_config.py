@@ -7,7 +7,7 @@ from ifcb_classify.chains.train import resolve_data_yaml
 def test_valid_config():
     cfg = ChainTrainConfig(class_name="Skeletonema", data="datasets/skeletonema")
     assert cfg.class_name == "Skeletonema"
-    assert cfg.model == "yolo11n.pt"
+    assert cfg.model == "yolo11s.pt"
     assert cfg.device == "cpu"
 
 
