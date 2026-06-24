@@ -1,0 +1,61 @@
+# Production inference config: SMHI-NIVA-SYKE-SAMS-SZN ResNet-50 V6 classifier
+# + chain counting for the trained chain-forming taxa.
+# Requires the 'chains' extra: uv pip install -e ".[chains]"
+#
+# Per-taxon NMS IoU values below were chosen from the chains-eval count-accuracy
+# sweep against each detector's val split (conf 0.25). Most taxa peak at IoU 0.30;
+# thalassiosira/thalassionema do marginally better at 0.50.
+
+input_path: /path/to/bins                 # <-- set per run (a bin file or a directory of bins)
+model_checkpoint: /media/anders/work/R/ifcb-pytorch-classify/runs/classify/V6-resnet50_dataset_squarepad_augmented_b64_lr0.0001_e20_best.pt
+output_dir: /path/to/class_scores         # <-- set per run
+batch_size: 64
+device: auto
+overwrite: false
+
+# Classifier decision thresholds (class_metrics JSON shipped with the model —
+# read directly by the pipeline's loader). ROIs below their class threshold become
+# "unclassified" and are not counted.
+thresholds_path: /media/anders/work/R/ifcb-pytorch-classify/runs/classify/V6-resnet50_dataset_squarepad_augmented_b64_lr0.0001_e20_thresholds_and_metrics.json
+
+# Chain counting — only ROIs whose thresholded class_name matches a key are counted;
+# every other ROI gets chain_count = -1. Keys MUST match the classifier labels exactly.
+# Several labels share one genus detector (Thalassiosira x7, Chaetoceros x10).
+chain_counting:
+  enabled: true
+  conf: 0.25
+  iou: 0.30                                # default; per-model overrides below
+
+  models:
+    # --- single-label detectors -------------------------------------------------
+    Skeletonema_spp:             { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/skeletonema/best.pt, iou: 0.30 }
+    Pseudo-nitzschia_spp:        { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/pseudo-nitzschia/best.pt, iou: 0.30 }
+    Cerataulina_pelagica:        { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/cerataulina_pelagica/best.pt, iou: 0.30 }
+    Guinardia_delicatula:        { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/guinardia_delicatula/best.pt, iou: 0.30 }
+    Thalassionema_nitzschioides: { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/thalassionema_nitzschioides/best.pt, iou: 0.50 }
+
+    # --- Leptocylindrus (detector trained on danicus+minimus combined) ----------
+    Leptocylindrus_danicus_Leptocylindrus_minimus: { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/leptocylindrus/best.pt, iou: 0.30 }
+    Leptocylindrus_danicus:                         { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/leptocylindrus/best.pt, iou: 0.30 }
+
+    # --- Thalassiosira genus detector (7 classifier labels) ---------------------
+    Thalassiosira_spp_chain:       { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_spp_single:      { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_angulata:        { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_anguste-lineata: { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_gravida-like:    { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_levanderi:       { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_nordenskioeldii: { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/thalassiosira/best.pt, iou: 0.50 }
+
+    # --- Chaetoceros genus detector (10 classifier labels) ----------------------
+    # NOTE: weakest detector (val exact 62%, over-counts). Treat counts as approximate
+    # pending more training data; consider raising conf to curb over-counting.
+    Chaetoceros_spp_chain:                      { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_spp_single:                     { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_danicus:                        { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_decipiens:                      { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_diadema:                        { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_contortus:                      { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_cf_convolutus:                  { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_curvisetus_Chaetoceros_debilis: { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_tenuissimus-like:               { weights: /media/anders/work/R/ifcb-pytorch-classify/models/chains/chaetoceros/best.pt, iou: 0.30 }
