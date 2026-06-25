@@ -195,7 +195,16 @@ names:
 ```
 
 `--data` accepts either a `data.yaml` file or a directory containing one
-(`data.local.yaml` is preferred over `data.yaml` when both exist).
+(`data.local.yaml` is preferred over `data.yaml` when both exist). A Label Studio
+YOLO export doesn't match this layout directly —
+[`scripts/prepare_ls_yolo.py`](scripts/prepare_ls_yolo.py) pairs the exported
+labels to images, splits train/val, and writes the `data.yaml` for you.
+
+> **Annotating efficiently:** drawing every box by hand is slow. See
+> [docs/chain-counting-annotation.md](docs/chain-counting-annotation.md) for the
+> full workflow — Label Studio setup, annotation conventions, the bootstrap loop
+> (pre-annotate with a model, then *correct* its boxes), `--imgsz` guidance, and
+> the [`scripts/`](scripts) helpers that support it.
 
 **Compute** — `yolo11n.pt` (nano) trains in ~hours on CPU and is a good starting
 point; use a larger model (`yolo11x.pt`) on a GPU (`--device 0`) for best
