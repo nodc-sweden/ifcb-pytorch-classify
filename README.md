@@ -135,6 +135,14 @@ many* cells it contains. The optional chain-counting feature trains a small
 individual cells, and (during inference) stores the count alongside the
 classification result.
 
+This approach follows Groves et al. (2026), who demonstrated automatic
+enumeration of marine diatom chains with YOLO:
+
+> Groves, G. J. J., Arthur, G., Bresnan, E., Whyte, C., Arce, P., & Davidson, K.
+> (2026). Automatic enumeration of chains of marine diatoms using "You Only Look
+> Once"—a machine learning approach. *Journal of Plankton Research*, 48(2),
+> fbaf064. https://doi.org/10.1093/plankt/fbaf064
+
 Requires the `chains` extra:
 
 ```bash
