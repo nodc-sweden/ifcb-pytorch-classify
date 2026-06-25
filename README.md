@@ -152,7 +152,9 @@ uv pip install -e ".[chains]"
 #### Training a detector for any chain-forming taxon
 
 Train one detector per taxon you want to count. This works for any chain-forming
-species — bring your own annotated data.
+species — bring your own annotated data. Some annotated chain-count images are
+available from
+[EuropeanIFCBGroup/IFCBChainCounts](https://github.com/EuropeanIFCBGroup/IFCBChainCounts).
 
 ```bash
 python -m ifcb_classify chains-train --config configs/chains_train_default.yaml
