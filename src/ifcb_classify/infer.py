@@ -164,6 +164,10 @@ def _classify_bin_file(
 
     target_numbers = []
     images = []
+    # When counting, the untransformed PILs for the whole bin are held until
+    # after classification: which ROIs need a count isn't known until the
+    # thresholded class is decided, so every ROI's image must be retained. This
+    # roughly doubles peak memory for the bin during counting.
     raw_images = [] if counter is not None else None
     for target_num, img in iter_bin_images(bin_path):
         target_numbers.append(target_num)
@@ -198,6 +202,8 @@ def _classify_directory(
 
         target_numbers = []
         images = []
+        # See _classify_bin_file: raw PILs are retained for the whole bin when
+        # counting, since the countable ROIs aren't known until classification.
         raw_images = [] if counter is not None else None
         with fbin:
             for target_num, img in iter_bin_images(fbin):

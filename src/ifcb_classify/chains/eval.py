@@ -53,7 +53,17 @@ def load_counts_csv(path: str, file_col: str, count_col: str) -> list[tuple[str,
             raise ValueError(
                 f"counts CSV must have columns '{file_col}' and '{count_col}'; got {reader.fieldnames}"
             )
-        return [(row[file_col], int(row[count_col])) for row in reader]
+        rows: list[tuple[str, int]] = []
+        for line_no, row in enumerate(reader, start=2):  # line 1 is the header
+            try:
+                count = int(row[count_col])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"{path} line {line_no}: column '{count_col}'={row[count_col]!r} "
+                    "is not an integer"
+                ) from exc
+            rows.append((row[file_col], count))
+        return rows
 
 
 def evaluate_counts(config: ChainEvalConfig) -> list[dict]:

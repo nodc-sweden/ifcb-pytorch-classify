@@ -91,9 +91,9 @@ def _index_bins(input_path: Path) -> dict[str, Path]:
 def _count_one_file(h5_path: Path, bin_index: dict[str, Path], counter, overwrite: bool) -> None:
     """Count one class-score file and write its ``chain_count`` dataset in place.
 
-    Skips files that already carry counts (unless ``overwrite``) and files with
-    no countable ROIs still get an all-``-1`` dataset for a consistent schema.
-    Logs and skips when the source bin can't be found.
+    Skips files that already carry counts (unless ``overwrite``). Files with no
+    countable ROIs — and files whose source bin can't be found — still get an
+    all-``-1`` dataset, so every processed file ends up with a uniform schema.
     """
     lid = h5_path.name.removesuffix("_class.h5")
 
@@ -110,15 +110,17 @@ def _count_one_file(h5_path: Path, bin_index: dict[str, Path], counter, overwrit
     if gated:
         bin_path = bin_index.get(lid)
         if bin_path is None:
+            # No source bin: still write the all-sentinel dataset (below) so the
+            # schema stays uniform with the no-countable-ROIs case.
             logger.warning("No raw bin found for %s — leaving uncounted", lid)
-            return
-        images = _load_images(bin_path, set(gated))
-        for target, j in gated.items():
-            img = images.get(target)
-            if img is None:
-                logger.warning("ROI %d not found in bin %s — leaving uncounted", target, lid)
-                continue
-            counts[j] = counter.count(img, class_name[j])
+        else:
+            images = _load_images(bin_path, set(gated))
+            for target, j in gated.items():
+                img = images.get(target)
+                if img is None:
+                    logger.warning("ROI %d not found in bin %s — leaving uncounted", target, lid)
+                    continue
+                counts[j] = counter.count(img, class_name[j])
 
     _write_counts(h5_path, counts, counter.models_metadata())
     n_counted = int((counts >= 0).sum())

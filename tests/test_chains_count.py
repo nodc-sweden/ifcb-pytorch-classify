@@ -136,15 +136,16 @@ def test_count_one_file_no_gated_writes_all_sentinel(tmp_path, monkeypatch):
     assert called == []  # no countable ROIs, so the bin is never opened
 
 
-def test_count_one_file_missing_bin_skips(tmp_path):
+def test_count_one_file_missing_bin_writes_sentinel(tmp_path):
     class_labels = ["Skeletonema"]
     h5 = tmp_path / "D1_class.h5"
     _write_scores_file(h5, class_labels, ["Skeletonema"], [5], [np.nan])
     counter = _StubCounter(handled=["Skeletonema"])
-    # bin_index has no entry for D1 -> leave the file untouched.
+    # bin_index has no entry for D1 -> still write an all-sentinel dataset so the
+    # schema stays uniform with the no-countable-ROIs case.
     count_mod._count_one_file(h5, {}, counter, overwrite=False)
     with h5py.File(h5, "r") as f:
-        assert "chain_count" not in f
+        np.testing.assert_array_equal(f["chain_count"][:], [-1])
 
 
 # --- count_main integration --------------------------------------------------

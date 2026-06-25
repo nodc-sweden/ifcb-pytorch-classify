@@ -57,6 +57,13 @@ def test_load_counts_csv_missing_column(tmp_path):
         load_counts_csv(str(csv), "file_name", "cell_count")
 
 
+def test_load_counts_csv_non_integer_count_reports_line(tmp_path):
+    csv = tmp_path / "counts.csv"
+    csv.write_text("file_name,cell_count\na.png,3\nb.png,not_a_number\n")
+    with pytest.raises(ValueError, match="line 3: column 'cell_count'='not_a_number'"):
+        load_counts_csv(str(csv), "file_name", "cell_count")
+
+
 # --- config validation ------------------------------------------------------
 
 def test_eval_config_requires_fields():

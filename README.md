@@ -227,6 +227,11 @@ chain_counting:
 > species of a genus plus the genus-level class — map each label to the same
 > weights.
 
+> **Security:** detector `weights` are loaded with ultralytics' `YOLO(...)`,
+> which unpickles the checkpoint and can execute arbitrary code. Only point
+> `chain_counting` at weights you trained or otherwise trust — the same caution
+> that applies to the classifier checkpoint loaded with `--allow-unsafe`.
+
 ```bash
 python -m ifcb_classify infer --config configs/infer_with_chains.yaml
 python -m ifcb_classify infer --config configs/infer_with_chains.yaml --no-count  # disable
