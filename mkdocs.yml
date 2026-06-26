@@ -5,9 +5,8 @@ repo_url: https://github.com/nodc-sweden/ifcb-pytorch-classify
 repo_name: nodc-sweden/ifcb-pytorch-classify
 edit_uri: edit/main/docs/
 
-# README is reused as the home page (docs/index.md), so reload on its changes.
+# Reload the API reference when docstrings change.
 watch:
-  - README.md
   - src/ifcb_classify
 
 theme:
@@ -35,18 +34,16 @@ theme:
         icon: material/weather-sunny
         name: Switch to light mode
 
-# README is reused as the home page; its links point at repo files (scripts/,
-# LICENSE) rather than doc pages, so don't fail the build over them.
-validation:
-  links:
-    not_found: ignore
-    absolute_links: ignore
-    unrecognized_links: ignore
-
 nav:
   - Home: index.md
+  - Getting started: getting-started.md
+  - Installation: installation.md
   - Guides:
-      - Chain-counting annotation: chain-counting-annotation.md
+      - Training: guides/training.md
+      - Inference: guides/inference.md
+      - Chain counting: guides/chain-counting.md
+      - Annotation & training: guides/chain-counting-annotation.md
+  - Configuration: configuration.md
   - API reference: reference/
 
 plugins:
@@ -70,6 +67,10 @@ plugins:
             signature_crossrefs: true
             members_order: source
             filters: ["!^_"]
+            # Render a linked summary table of submodules/members, so the
+            # package landing page (empty __init__) is a useful index.
+            summary: true
+            show_submodules: false
 
 markdown_extensions:
   - admonition
