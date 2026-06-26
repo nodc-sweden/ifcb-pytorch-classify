@@ -1,8 +1,9 @@
 # Chain-counting: annotation & training workflow
 
 End-to-end workflow for building per-taxon YOLO cell-counting detectors for IFCB
-chain-forming plankton, from labelling in Label Studio to a final GPU-trained
-model. The detector counts cells in an ROI (count = number of detected boxes);
+colony-forming plankton (chains, ribbons, fans, branched or spherical colonies),
+from labelling in Label Studio to a final GPU-trained model. The detector counts
+cells in an ROI (count = number of detected boxes);
 the `ifcb-classify` classifier decides *what* the ROI is, the detector decides
 *how many* cells it contains.
 

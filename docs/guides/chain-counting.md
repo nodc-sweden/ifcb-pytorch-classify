@@ -1,11 +1,19 @@
 # Chain counting
 
-Some plankton form chains of many cells in a single ROI (e.g. *Skeletonema*).
-For these taxa, classification alone tells you *what* the ROI is but not *how
-many* cells it contains. The optional chain-counting feature trains a small
+Many plankton grow as multi-celled colonies in a single ROI — chains (e.g.
+*Skeletonema*), but also ribbons, fans, and branched or spherical colonies. For
+these taxa, classification alone tells you *what* the ROI is but not *how many*
+cells it contains. This optional feature trains a small
 [YOLO](https://docs.ultralytics.com/) object detector **per taxon** that counts
-individual cells, and (during inference) stores the count alongside the
-classification result.
+the individual cells in each ROI, and (during inference) stores that **cell
+count** alongside the classification result.
+
+!!! note "It counts cells, not chains"
+    The feature and its CLI commands keep the "chain" name (`chains-train`,
+    `chains-count`, `chains-eval`) for historical reasons, but the value it
+    produces is a per-ROI **cell count** — the number of cells in a colony of
+    *any* form, not a tally of chains. The stored dataset is named `cell_count`
+    accordingly.
 
 This approach follows Groves et al. (2026), who demonstrated automatic
 enumeration of marine diatom chains with YOLO:
@@ -131,12 +139,10 @@ weights/IoU/conf used. Existing consumers ignore the extra dataset. See
 
 !!! info "What `cell_count` stores"
     The **number of cells in that ROI** — i.e. the number of boxes the detector
-    found in the image. Each ROI is one chain/colony (a chain, ribbon, fan,
-    branched or spherical colony), and `cell_count` is how many cells it
-    contains; it is *not* a tally of chains. `-1` means the ROI was not counted
-    (not a counted taxon, or below its classifier threshold). The feature is
-    still called "chain counting" for historical reasons, but it counts cells in
-    colonies of any form.
+    found in the image. Each ROI is one colony (a chain, ribbon, fan, branched or
+    spherical colony), and `cell_count` is how many cells it contains; it is
+    *not* a tally of colonies. `-1` means the ROI was not counted (not a counted
+    taxon, or below its classifier threshold).
 
 ## Counting on already-classified bins
 
