@@ -36,3 +36,20 @@ plankton images using PyTorch.
 
 The project lives on
 [GitHub](https://github.com/nodc-sweden/ifcb-pytorch-classify).
+
+## Citation
+
+If you use this software, please cite it. On GitHub, use the **"Cite this
+repository"** button (which reads
+[`CITATION.cff`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/CITATION.cff)),
+or use the following BibTeX:
+
+```bibtex
+@software{torstensson_ifcb_classify,
+  author  = {Torstensson, Anders},
+  title   = {ifcb-classify: a PyTorch pipeline for IFCB plankton image classification},
+  year    = {2026},
+  version = {0.2.0},
+  url     = {https://github.com/nodc-sweden/ifcb-pytorch-classify}
+}
+```

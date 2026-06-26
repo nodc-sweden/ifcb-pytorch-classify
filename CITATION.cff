@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "ifcb-classify: a PyTorch pipeline for IFCB plankton image classification"
+abstract: "Pipeline for training and running inference on IFCB (Imaging FlowCytobot) plankton images using PyTorch, with optional per-taxon YOLO cell counting."
+type: software
+authors:
+  - family-names: Torstensson
+    given-names: Anders
+    affiliation: "Swedish Meteorological and Hydrological Institute (SMHI)"
+    orcid: "https://orcid.org/0000-0002-8283-656X"
+version: "0.2.0"
+date-released: "2026-06-26"
+license: MIT
+repository-code: "https://github.com/nodc-sweden/ifcb-pytorch-classify"
+url: "https://nodc-sweden.github.io/ifcb-pytorch-classify/"
+keywords:
+  - IFCB
+  - Imaging FlowCytobot
+  - plankton
+  - image classification
+  - deep learning
+  - PyTorch

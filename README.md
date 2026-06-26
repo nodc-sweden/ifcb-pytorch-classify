@@ -65,6 +65,22 @@ The rendered site (with the auto-generated API reference) is at
 python -m pytest tests/ -v
 ```
 
+## Citation
+
+If you use this software, please cite it. GitHub's **"Cite this repository"**
+button (top right) generates APA/BibTeX from [`CITATION.cff`](CITATION.cff), or
+use:
+
+```bibtex
+@software{torstensson_ifcb_classify,
+  author  = {Torstensson, Anders},
+  title   = {ifcb-classify: a PyTorch pipeline for IFCB plankton image classification},
+  year    = {2026},
+  version = {0.2.0},
+  url     = {https://github.com/nodc-sweden/ifcb-pytorch-classify}
+}
+```
+
 ## License
 
 See [LICENSE](LICENSE).
