@@ -70,6 +70,10 @@ plugins:
             signature_crossrefs: true
             members_order: source
             filters: ["!^_"]
+            # Render a linked summary table of submodules/members, so the
+            # package landing page (empty __init__) is a useful index.
+            summary: true
+            show_submodules: false
 
 markdown_extensions:
   - admonition
