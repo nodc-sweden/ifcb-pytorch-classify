@@ -7,17 +7,19 @@ the `ifcb-classify` classifier decides *what* the ROI is, the detector decides
 *how many* cells it contains.
 
 The `chains-train` / `chains-eval` / `infer` commands are part of the package;
-the helper scripts referenced below live in [`scripts/`](../scripts) and cover
-the data side. They need the `chains` extra (`uv pip install -e ".[chains]"`).
+the helper scripts referenced below live in
+[`scripts/`](https://github.com/nodc-sweden/ifcb-pytorch-classify/tree/main/scripts)
+and cover the data side. They need the `chains` extra
+(`uv pip install -e ".[chains]"`).
 
 ## Helper scripts
 
 | Script | Purpose |
 |---|---|
-| [`scripts/prepare_ls_yolo.py`](../scripts/prepare_ls_yolo.py) | Turn a Label Studio **YOLO export** into a `chains-train` dataset (pairs labels↔images, splits train/val, writes `data.yaml`). |
-| [`scripts/ls_preannotate_api.py`](../scripts/ls_preannotate_api.py) | **Pre-annotate existing Label Studio tasks in place** via the API — runs a trained model and attaches predicted boxes as predictions (no duplicate tasks). |
-| [`scripts/yolo_pre_annotate.py`](../scripts/yolo_pre_annotate.py) | Alternative: emit Label Studio **import JSON** with predictions, for images that are *not* yet tasks. |
-| [`scripts/compare_bootstrap_models.py`](../scripts/compare_bootstrap_models.py) | Trial every trained detector on a new taxon and rank them, to pick a bootstrap model by **cell morphology** (not taxonomy). |
+| [`prepare_ls_yolo.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/prepare_ls_yolo.py) | Turn a Label Studio **YOLO export** into a `chains-train` dataset (pairs labels↔images, splits train/val, writes `data.yaml`). |
+| [`ls_preannotate_api.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/ls_preannotate_api.py) | **Pre-annotate existing Label Studio tasks in place** via the API — runs a trained model and attaches predicted boxes as predictions (no duplicate tasks). |
+| [`yolo_pre_annotate.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/yolo_pre_annotate.py) | Alternative: emit Label Studio **import JSON** with predictions, for images that are *not* yet tasks. |
+| [`compare_bootstrap_models.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/compare_bootstrap_models.py) | Trial every trained detector on a new taxon and rank them, to pick a bootstrap model by **cell morphology** (not taxonomy). |
 
 ## The iterative bootstrap loop
 

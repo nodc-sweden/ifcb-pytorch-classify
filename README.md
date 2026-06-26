@@ -10,6 +10,8 @@
 
 Pipeline for training and running inference on IFCB (Imaging FlowCytobot) plankton images using PyTorch.
 
+📖 **Full documentation: <https://nodc-sweden.github.io/ifcb-pytorch-classify/>**
+
 ## Capabilities
 
 - **Training** — Fine-tune 40+ pretrained architectures (ResNet, EfficientNet, ConvNeXt, Vision Transformers, etc.) on class-folder organised image datasets, with optional evaluation plots (static PNG + interactive HTML)
@@ -18,368 +20,44 @@ Pipeline for training and running inference on IFCB (Imaging FlowCytobot) plankt
 - **Experiment tracking** — CSV (default), MLflow, or Weights & Biases
 - **Built for pipelines** — Date-placeholder paths for date-organised continuous inference, and automatic device selection (GPU for training, CPU by default for inference)
 
-## Installation
+## Quick start
 
-Requires Python 3.11–3.12, PyTorch, and [uv](https://docs.astral.sh/uv/getting-started/installation/).
-
-### CPU only
-
-**Linux/macOS:**
-```bash
-uv venv
-source .venv/bin/activate
-uv pip install -e .
-```
-
-**Windows:**
-```powershell
-uv venv
-.venv\Scripts\activate
-uv pip install -e .
-```
-
-### With CUDA
-
-PyTorch from PyPI is CPU-only. To get CUDA support, install torch first from the [PyTorch wheel index](https://pytorch.org/get-started/locally/) for your CUDA version, then install the package:
-
-**Linux/macOS:**
-```bash
-uv venv
-source .venv/bin/activate
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130  # adjust to your CUDA version
-uv pip install -e .
-```
-
-**Windows:**
-```powershell
-uv venv
-.venv\Scripts\activate
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130  # adjust to your CUDA version
-uv pip install -e .
-```
-### Optional extras
+Requires Python 3.11–3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
-uv pip install -e ".[mlflow]"   # MLflow support
-uv pip install -e ".[wandb]"    # Weights & Biases support
-uv pip install -e ".[chains]"   # YOLO chain counting (see below)
-uv pip install -e ".[dev]"      # Development tools
+uv venv
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
+uv pip install -e .
 ```
 
-## Usage
-
-### Training
+Train a classifier, then classify a directory of raw IFCB bins:
 
 ```bash
 python -m ifcb_classify train --config configs/train_default.yaml
-```
 
-With CLI overrides:
-
-```bash
-python -m ifcb_classify train --config configs/train_default.yaml \
-    --model convnext_tiny --lr 0.001 --epochs 30
-```
-
-Add `--plots` to generate evaluation plots after training:
-
-```bash
-python -m ifcb_classify train --config configs/train_default.yaml --plots
-```
-
-This produces static PNG plots (training curves, per-class F1, precision vs. recall scatter, class support distribution, top confused pairs) saved to `<output_dir>/plots/<run_name>/`.  Interactive HTML plots are also generated (zoomable confusion matrix with row-normalized percentages, sortable per-class metrics table).
-
-Training data should be organised in class folders:
-
-```
-training_data/V1/
-  Asterionellopsis_glacialis/
-  Dactyliosolen_fragilissimus/
-  Dinophysis_acuminata/
-  ...
-```
-
-### Inference
-
-On a directory of raw IFCB bins (`.roi/.adc/.hdr`):
-
-```bash
 python -m ifcb_classify infer \
     --input /path/to/bins \
     --model output/model_best.pt \
     --output /path/to/class_scores
 ```
 
-Legacy checkpoints (raw state dicts saved outside this pipeline) require unsafe pickle loading. Add `--allow-unsafe` to permit this:
+See [Getting started](docs/getting-started.md) for the full walkthrough, and
+[Installation](docs/installation.md) for CUDA and optional extras.
 
-```bash
-python -m ifcb_classify infer \
-    --input /path/to/bins \
-    --model /path/to/legacy_model.pt \
-    --classes /path/to/classes.txt \
-    --allow-unsafe
-```
+## Documentation
 
-Or with a config file:
+| Topic | Description |
+|---|---|
+| [Getting started](docs/getting-started.md) | Install, train, and run inference end to end |
+| [Installation](docs/installation.md) | CPU, CUDA, and optional extras |
+| [Training](docs/guides/training.md) | Training options, plots, normalisation |
+| [Inference](docs/guides/inference.md) | Classifying raw bins, output format |
+| [Chain counting](docs/guides/chain-counting.md) | Per-taxon YOLO cell counting |
+| [Annotation & training](docs/guides/chain-counting-annotation.md) | Labelling workflow for chain detectors |
+| [Configuration](docs/configuration.md) | Config parameters and date placeholders |
 
-```bash
-python -m ifcb_classify infer --config configs/infer_default.yaml
-```
-
-Output is one `{sample}_class.h5` file per bin, compatible with the IFCB Dashboard, [iRfcb](https://europeanifcbgroup.github.io/iRfcb/) and [ClassiPyR](https://europeanifcbgroup.github.io/ClassiPyR/).
-
-### Chain counting (optional)
-
-Some plankton form chains of many cells in a single ROI (e.g. *Skeletonema*).
-For these taxa, classification alone tells you *what* the ROI is but not *how
-many* cells it contains. The optional chain-counting feature trains a small
-[YOLO](https://docs.ultralytics.com/) object detector **per taxon** that counts
-individual cells, and (during inference) stores the count alongside the
-classification result.
-
-This approach follows Groves et al. (2026), who demonstrated automatic
-enumeration of marine diatom chains with YOLO:
-
-> Groves, G. J. J., Arthur, G., Bresnan, E., Whyte, C., Arce, P., & Davidson, K.
-> (2026). Automatic enumeration of chains of marine diatoms using "You Only Look
-> Once"—a machine learning approach. *Journal of Plankton Research*, 48(2),
-> fbaf064. https://doi.org/10.1093/plankt/fbaf064
-
-Requires the `chains` extra:
-
-```bash
-uv pip install -e ".[chains]"
-```
-
-#### Training a detector for any chain-forming taxon
-
-Train one detector per taxon you want to count. This works for any chain-forming
-species — bring your own annotated data. Some annotated chain-count images are
-available from
-[EuropeanIFCBGroup/IFCBChainCounts](https://github.com/EuropeanIFCBGroup/IFCBChainCounts).
-
-```bash
-python -m ifcb_classify chains-train --config configs/chains_train_default.yaml
-```
-
-With CLI overrides (e.g. a larger model on a GPU):
-
-```bash
-python -m ifcb_classify chains-train \
-    --class-name Skeletonema --data /path/to/datasets/skeletonema \
-    --model yolo11x.pt --epochs 200 --device 0
-```
-
-The best checkpoint is written to `<project>/<name>/weights/best.pt`.
-
-**Dataset layout** — object detection needs *bounding boxes* around individual
-cells (the class-folder data used for classification has none), so ROIs must be
-annotated first (e.g. with [Label Studio](https://labelstud.io/),
-[CVAT](https://www.cvat.ai/), or [Roboflow](https://roboflow.com/)). Export in
-YOLO format:
-
-```
-datasets/skeletonema/
-  data.yaml                 # names + train/val image dirs
-  images/train/*.png        labels/train/*.txt   # one .txt of boxes per image
-  images/val/*.png          labels/val/*.txt
-```
-
-Each label `.txt` holds one line per cell: `class_id cx cy w h` (normalised
-0–1). With a single taxon per detector, `class_id` is always `0`. A `data.yaml`:
-
-```yaml
-path: /abs/path/to/datasets/skeletonema
-train: images/train
-val: images/val
-names:
-  0: skeletonema
-```
-
-`--data` accepts either a `data.yaml` file or a directory containing one
-(`data.local.yaml` is preferred over `data.yaml` when both exist). A Label Studio
-YOLO export doesn't match this layout directly —
-[`scripts/prepare_ls_yolo.py`](scripts/prepare_ls_yolo.py) pairs the exported
-labels to images, splits train/val, and writes the `data.yaml` for you.
-
-> **Annotating efficiently:** drawing every box by hand is slow. See
-> [docs/chain-counting-annotation.md](docs/chain-counting-annotation.md) for the
-> full workflow — Label Studio setup, annotation conventions, the bootstrap loop
-> (pre-annotate with a model, then *correct* its boxes), `--imgsz` guidance, and
-> the [`scripts/`](scripts) helpers that support it.
-
-**Compute** — `yolo11n.pt` (nano) trains in ~hours on CPU and is a good starting
-point; use a larger model (`yolo11x.pt`) on a GPU (`--device 0`) for best
-accuracy. CUDA requires a CUDA build of PyTorch (see [With CUDA](#with-cuda)).
-
-See `configs/chains_train_default.yaml` for all options.
-
-#### Counting during inference
-
-Add a `chain_counting` block to your inference config to count cells while
-classifying. Only ROIs whose **thresholded `class_name`** matches a configured
-key are counted; all other ROIs get `cell_count = -1`.
-
-```yaml
-chain_counting:
-  enabled: true
-  conf: 0.25            # default; per-model override allowed
-  iou: 0.30             # default; per-model override allowed
-  models:
-    Skeletonema_marinoi:
-      weights: /models/chains/chains_skeletonema_yolo11n/weights/best.pt
-      iou: 0.30
-    # Several labels may share one detector (e.g. species + genus-level class):
-    # Thalassiosira_spp: { weights: /models/chains/thalassiosira_best.pt }
-```
-
-> **Keys must match the classifier's output labels exactly.** A detector is a
-> single-class "cell vs. not-cell" model, so one detector typically serves all
-> species of a genus plus the genus-level class — map each label to the same
-> weights.
-
-> **Security:** detector `weights` are loaded with ultralytics' `YOLO(...)`,
-> which unpickles the checkpoint and can execute arbitrary code. Only point
-> `chain_counting` at weights you trained or otherwise trust — the same caution
-> that applies to the classifier checkpoint loaded with `--allow-unsafe`.
-
-```bash
-python -m ifcb_classify infer --config configs/infer_with_chains.yaml
-python -m ifcb_classify infer --config configs/infer_with_chains.yaml --no-count  # disable
-```
-
-The output `_class.h5` gains a `cell_count` dataset (int32, one per ROI; `-1`
-where not counted) and a `cell_counter_models` JSON attribute recording the
-weights/IoU/conf used. Existing consumers ignore the extra dataset. See
-`configs/infer_with_chains.yaml` for a full example.
-
-> **What `cell_count` stores:** the **number of cells in that ROI** — i.e. the
-> number of boxes the detector found in the image. Each ROI is one chain/colony
-> (a chain, ribbon, fan, branched or spherical colony), and `cell_count` is how
-> many cells it contains; it is *not* a tally of chains. `-1` means the ROI was
-> not counted (not a counted taxon, or below its classifier threshold). The
-> feature is still called "chain counting" for historical reasons, but it counts
-> cells in colonies of any form.
-
-#### Counting on already-classified bins
-
-If you already have `_class.h5` files and only want to add (or refresh) counts —
-e.g. after training a new detector — use `chains-count` instead of re-running
-`infer`. It reuses the stored `class_name` to decide which ROIs to count, so it
-**skips the classifier entirely** and only runs the detector on the matching
-ROIs, reading their pixels from the raw bins:
-
-```bash
-# Reuse the same inference config (input_path = raw bins, output_dir = the
-# directory of existing *_class.h5 files, plus the chain_counting block):
-python -m ifcb_classify chains-count --config configs/infer_with_chains.yaml
-
-# Or point at the two directories directly:
-python -m ifcb_classify chains-count \
-    --input /path/to/raw/bins \
-    --output output/class_scores \
-    --config configs/infer_with_chains.yaml   # still needed for the detector block
-```
-
-Each file's `cell_count` dataset is written in place. Files that already carry
-counts are skipped unless you pass `--overwrite`. The raw bins are still required
-(the `.h5` stores scores, not pixels), but the expensive ResNet pass is avoided.
-
-#### Validating count accuracy
-
-`chains-eval` compares a detector's predicted counts against manual counts and
-sweeps the NMS IoU so you can pick the best value per taxon. Provide a directory
-of test images and a CSV with a filename column and an integer count column
-(`file_name,cell_count`):
-
-```bash
-python -m ifcb_classify chains-eval \
-    --weights output/chains/chains_skeletonema_yolo11n/weights/best.pt \
-    --images /path/to/test_images \
-    --counts-csv /path/to/test_image_counts.csv \
-    --ious 0.3,0.5,0.7
-```
-
-It reports MAE, mean bias, exact-match and within-±1 accuracy, and total counts
-per IoU. Add `--output results.csv` for per-image predictions.
-
-**Checking one detector across species** — to verify that a single genus-level
-detector generalises (rather than training per species), run the *same*
-`--weights` against each species' test set and compare the metrics. Train a
-dedicated detector only if a particular species shows high error. See
-`configs/chains_eval_default.yaml`.
-
-### Dataset normalisation
-
-Compute mean and std for normalised transforms:
-
-```bash
-python -m ifcb_classify normalise --data-dir training_data/V1
-```
-
-## Configuration
-
-See `configs/train_default.yaml` and `configs/infer_default.yaml` for all available options. Key training parameters:
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `model` | `resnet50` | Model architecture (see `src/ifcb_classify/models/registry.py` for full list) |
-| `transform` | `dataset_squarepad_augmented` | Image preprocessing pipeline |
-| `lr` | `0.0001` | Learning rate |
-| `batch_size` | `64` | Batch size |
-| `epochs` | `20` | Number of training epochs |
-| `checkpoint_metric` | `weighted_f1` | Metric used for best-model checkpointing |
-| `tracker` | `csv` | Experiment tracker (`csv`, `mlflow`, `wandb`, `none`) |
-| `plots` | `false` | Generate evaluation plots after training |
-
-### Date placeholders
-
-Path values in YAML configs support date placeholders that are expanded at load time (UTC). This is useful for continuous inference pipelines where input/output directories are organised by date.
-
-| Placeholder | Example value | Description |
-|-------------|---------------|-------------|
-| `{year}` | `2026` | Four-digit year |
-| `{month}` | `03` | Zero-padded month |
-| `{day}` | `14` | Zero-padded day |
-| `{date}` | `20260314` | Combined `YYYYMMDD` |
-
-Example `infer.yaml`:
-
-```yaml
-input_path: /ifcb/data/{year}
-output_dir: /ifcb/output/{year}
-```
-
-## Project structure
-
-```
-src/ifcb_classify/
-  cli.py                 # CLI argument parsing
-  config.py              # YAML config loading
-  train.py               # Training loop
-  infer.py               # Inference pipeline
-  normalise.py           # Dataset mean/std computation
-  metrics.py             # Evaluation metrics (F1, AUROC, etc.)
-  plots.py               # Evaluation plots (static + interactive)
-  checkpoint.py          # Best-model saving
-  hdf5_output.py         # IFCB Dashboard v3 HDF5 writer
-  chains/                # Optional YOLO chain counting (requires [chains] extra)
-    config.py            # ChainTrainConfig + ChainCountingConfig + ChainEvalConfig
-    train.py             # Per-taxon YOLO detector training
-    counter.py           # Per-taxon cell counting at inference time
-    eval.py              # Count-accuracy validation + IoU sweep
-  models/
-    factory.py           # Model instantiation
-    registry.py          # 40+ architecture definitions
-  data/
-    datasets.py          # ImageFolder datasets with transforms
-    transforms.py        # SquarePad, FullPad, ReflectPad
-    ifcb_bin.py          # pyifcb wrapper for raw IFCB bins
-  tracking/
-    csv_tracker.py       # CSV logging
-    mlflow_tracker.py    # MLflow integration
-    wandb_tracker.py     # W&B integration
-```
+The rendered site (with the auto-generated API reference) is at
+<https://nodc-sweden.github.io/ifcb-pytorch-classify/>.
 
 ## Testing
 
