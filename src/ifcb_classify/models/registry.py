@@ -1,3 +1,12 @@
+"""Registry of supported torchvision architectures.
+
+:data:`MODELS` maps a model name to a :class:`ModelSpec` describing how to build
+it and where its classification head lives. To add an architecture, add one
+entry; :func:`ifcb_classify.models.factory.get_model` handles the rest. The name
+keys are exactly the values accepted by the ``--model`` flag and the ``model``
+config field.
+"""
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -6,6 +15,18 @@ import torchvision.models as tv
 
 @dataclass(frozen=True)
 class ModelSpec:
+    """How to build one architecture and attach a new classification head.
+
+    Attributes:
+        constructor: The torchvision factory function (e.g. ``tv.resnet50``).
+        head_path: Dot/bracket path to the head module to replace, e.g. ``"fc"``,
+            ``"classifier[6]"``, ``"heads[0]"``.
+        in_features: Input feature count of the new ``nn.Linear`` head.
+        bias: Whether the new head has a bias term.
+        weights: Pretrained-weights selector passed to the constructor;
+            ``"DEFAULT"`` for ImageNet weights, ``None`` to train from scratch.
+    """
+
     constructor: Any
     head_path: str
     in_features: int

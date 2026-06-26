@@ -1,0 +1,31 @@
+# Inference config with optional chain counting enabled.
+# Requires the 'chains' extra: uv pip install -e ".[chains]"
+
+input_path: /path/to/bins
+model_checkpoint: /path/to/classifier_best.pt
+output_dir: /path/to/class_scores
+batch_size: 64
+device: auto
+overwrite: false
+
+# Optional per-class thresholds (from training output):
+# thresholds_path: /path/to/thresholds.json
+
+# Chain counting: count individual cells in ROIs of chain-forming taxa.
+# Only ROIs whose thresholded class_name matches a key below are counted;
+# all other ROIs get cell_count = -1 in the output HDF5.
+#
+# Keys MUST match the classifier's output labels exactly. Several labels may
+# share one detector (e.g. Thalassiosira species + the genus-level class).
+chain_counting:
+  enabled: true
+  conf: 0.25            # default confidence threshold (per-model override allowed)
+  iou: 0.30             # default NMS IoU (per-model override allowed)
+  models:
+    Skeletonema_marinoi:
+      weights: /models/chains/chains_skeletonema_yolo11n/weights/best.pt
+      iou: 0.30
+    # Example many-to-one mapping for a genus with several species classes:
+    # Thalassiosira_nordenskioeldii: { weights: /models/chains/thalassiosira_best.pt }
+    # Thalassiosira_levanderi:       { weights: /models/chains/thalassiosira_best.pt }
+    # Thalassiosira_spp:             { weights: /models/chains/thalassiosira_best.pt }

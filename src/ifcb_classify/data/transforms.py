@@ -1,3 +1,13 @@
+"""Custom padding transforms for IFCB ROIs.
+
+IFCB ROIs vary widely in aspect ratio, so naive resizing distorts cells. These
+transforms pad first so the subsequent resize preserves shape. ``SquarePad`` and
+``FullPad`` fill new pixels with the image's average corner colour (an estimate
+of the background), keeping the padding visually consistent with the ROI;
+``ReflectPad`` mirrors edge pixels instead. They are composed into the pipelines
+in :mod:`ifcb_classify.data.datasets`.
+"""
+
 import cv2
 import numpy as np
 import torch
@@ -12,6 +22,11 @@ class FullPad:
         self.target_height = target_height
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
+        """Centre-pad ``image`` up to the target size; pass through if already larger.
+
+        New pixels are filled with the mean of the four corner pixels (a cheap
+        background estimate).
+        """
         s = image.size()
         width = s[-1]
         height = s[-2]
@@ -37,6 +52,7 @@ class SquarePad:
     """Pad image to square using corner-sampled background colour."""
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
+        """Pad ``image`` to a square (side = longer edge) using the corner-mean colour."""
         s = image.size()
         max_wh = np.max([s[-1], s[-2]])
         hp = int((max_wh - s[-1]) / 2)
@@ -61,6 +77,11 @@ class ReflectPad(torch.nn.Module):
         self.target_height = target_height
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
+        """Reflection-pad ``image`` toward the target size, then resize to exactly it.
+
+        Uses OpenCV (``BORDER_REFLECT`` + nearest-neighbour resize), so the image
+        round-trips through NumPy/BGR and back to a CHW tensor.
+        """
         s = image.size()
         width = s[-1]
         height = s[-2]

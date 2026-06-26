@@ -1,3 +1,15 @@
+"""Typed configuration objects for the train and infer commands.
+
+Both :class:`TrainConfig` and :class:`InferConfig` are frozen dataclasses whose
+defaults define the pipeline's out-of-the-box behaviour and whose
+``__post_init__`` validates the most error-prone fields. :func:`load_config`
+reads a YAML file, applies CLI overrides, expands date placeholders in path-like
+string values, drops unknown keys, and constructs the requested dataclass.
+
+The same :func:`load_config` is reused for the chain-counting configs, which is
+why it takes the dataclass type as an argument rather than hard-coding one.
+"""
+
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,6 +33,14 @@ def _expand_date_placeholders(value: str) -> str:
 
 @dataclass(frozen=True)
 class TrainConfig:
+    """Validated settings for a training run (see ``configs/train_default.yaml``).
+
+    Frozen so a config can't be mutated mid-run; sweeps build new instances
+    instead. ``sweep_params`` maps field names to lists of values to grid over;
+    ``manual_include_classes`` force-keeps named classes that would otherwise be
+    dropped by ``min_class_images``.
+    """
+
     data_dir: str = "training_data/V1"
     dataset_version: str = "V1"
     val_split: float = 0.2
@@ -48,6 +68,7 @@ class TrainConfig:
     plots: bool = False
 
     def __post_init__(self):
+        """Validate numeric ranges that would otherwise fail deep inside training."""
         if not (0.0 < self.val_split < 1.0):
             raise ValueError(f"val_split must be between 0 and 1 exclusive, got {self.val_split}")
         if self.lr <= 0:
@@ -62,6 +83,14 @@ class TrainConfig:
 
 @dataclass(frozen=True)
 class InferConfig:
+    """Validated settings for an inference run (see ``configs/infer_default.yaml``).
+
+    ``thresholds_path`` and ``classes_path`` are optional because both can be
+    auto-detected next to the checkpoint. ``chain_counting`` holds the raw YAML
+    block (parsed lazily into a ``ChainCountingConfig`` only if counting runs).
+    ``allow_unsafe`` permits loading legacy raw-state-dict checkpoints.
+    """
+
     input_path: str = ""
     model_checkpoint: str = ""
     output_dir: str = "output/class_scores"
@@ -76,8 +105,10 @@ class InferConfig:
     model_name: str | None = None
     num_threads: int | None = None
     allow_unsafe: bool = False
+    chain_counting: dict | None = None
 
     def __post_init__(self):
+        """Validate the numeric fields most likely to be misconfigured."""
         if self.batch_size < 1:
             raise ValueError(f"batch_size must be >= 1, got {self.batch_size}")
         if self.num_threads is not None and self.num_threads < 1:
@@ -85,6 +116,13 @@ class InferConfig:
 
 
 def load_config(yaml_path: str | Path, config_cls: type, overrides: dict | None = None):
+    """Load a YAML file into ``config_cls``, applying overrides and date expansion.
+
+    Non-``None`` ``overrides`` (typically CLI flags) take precedence over YAML
+    values. String values containing ``{`` are passed through
+    :func:`_expand_date_placeholders`. Keys not declared on ``config_cls`` are
+    silently dropped, so unrelated YAML keys won't raise.
+    """
     with open(yaml_path) as f:
         data = yaml.safe_load(f) or {}
     if overrides:
@@ -97,4 +135,5 @@ def load_config(yaml_path: str | Path, config_cls: type, overrides: dict | None 
 
 
 def config_to_dict(config) -> dict:
+    """Return a plain dict of a config dataclass (for logging and reconstruction)."""
     return asdict(config)

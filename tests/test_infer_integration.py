@@ -1,11 +1,14 @@
 from pathlib import Path
 
+import h5py
 import numpy as np
 import pytest
 import torch
+from PIL import Image
 
+from ifcb_classify import infer as infer_mod
 from ifcb_classify.config import TrainConfig, InferConfig
-from ifcb_classify.infer import _batch_predict, _derive_classifier_name, _has_pending_bins, _load_thresholds
+from ifcb_classify.infer import _batch_predict, _classify_directory, _derive_classifier_name, _has_pending_bins, _load_thresholds
 from ifcb_classify.train import train_main
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -59,6 +62,94 @@ def test_has_pending_bins_empty_directory(tmp_path):
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()
     assert _has_pending_bins(empty_dir, tmp_path) is False
+
+
+# --- _classify_directory (with stubbed bin I/O) -----------------------------
+
+class _FakeBin:
+    """A context-manageable stand-in for a pyifcb bin object."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def _two_roi_images(_bin):
+    """Yield two trivial 8x8 RGB ROIs, mimicking iter_bin_images."""
+    return [(0, Image.new("RGB", (8, 8))), (1, Image.new("RGB", (8, 8)))]
+
+
+def _wire_directory(monkeypatch, lids):
+    """Stub iter_directory_bins/iter_bin_images so no real bins are needed."""
+    monkeypatch.setattr(infer_mod, "iter_directory_bins", lambda d: [(lid, _FakeBin()) for lid in lids])
+    monkeypatch.setattr(infer_mod, "iter_bin_images", _two_roi_images)
+
+
+def _tiny_model_and_transform():
+    """A Linear model over flattened 3x8x8 ROIs and a matching transform."""
+    model = torch.nn.Linear(3 * 8 * 8, 2)
+    model.eval()
+    transform = lambda img: torch.rand(3 * 8 * 8)  # noqa: E731 - test shim
+    return model, transform
+
+
+def test_classify_directory_writes_outputs(tmp_path, monkeypatch):
+    _wire_directory(monkeypatch, ["D1", "D2"])
+    model, transform = _tiny_model_and_transform()
+
+    _classify_directory(
+        tmp_path, model, transform, torch.device("cpu"), 8,
+        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, overwrite=False,
+    )
+
+    assert (tmp_path / "D1_class.h5").exists()
+    assert (tmp_path / "D2_class.h5").exists()
+    with h5py.File(tmp_path / "D1_class.h5", "r") as f:
+        assert f["roi_numbers"][:].tolist() == [0, 1]
+        assert "cell_count" not in f
+
+
+def test_classify_directory_skips_existing(tmp_path, monkeypatch):
+    _wire_directory(monkeypatch, ["D1"])
+    model, transform = _tiny_model_and_transform()
+    # Pre-create an empty output: skip leaves it untouched (writing would make
+    # it a valid, non-empty HDF5 file).
+    existing = tmp_path / "D1_class.h5"
+    existing.touch()
+
+    _classify_directory(
+        tmp_path, model, transform, torch.device("cpu"), 8,
+        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, overwrite=False,
+    )
+
+    assert existing.stat().st_size == 0
+
+
+def test_classify_directory_with_counter(tmp_path, monkeypatch):
+    _wire_directory(monkeypatch, ["D1"])
+    model, transform = _tiny_model_and_transform()
+
+    class _StubCounter:
+        def handles(self, class_name):
+            return True  # count every ROI
+
+        def count(self, image, class_name):
+            return 7
+
+        def models_metadata(self):
+            return {"A": {"weights": "x.pt", "iou": 0.3, "conf": 0.25}}
+
+    _classify_directory(
+        tmp_path, model, transform, torch.device("cpu"), 8,
+        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, overwrite=False,
+        counter=_StubCounter(),
+    )
+
+    with h5py.File(tmp_path / "D1_class.h5", "r") as f:
+        np.testing.assert_array_equal(f["cell_count"][:], [7, 7])
+        assert "cell_counter_models" in f.attrs
 
 
 @pytest.mark.slow

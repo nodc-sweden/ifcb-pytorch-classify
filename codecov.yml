@@ -1,1 +1,21 @@
 comment: false
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        # Patch coverage is reported but never blocks the PR: the YOLO
+        # chain-counting code paths can only run with the optional `chains`
+        # extra (ultralytics) and a GPU, neither of which CI installs, so their
+        # changed lines are structurally uncoverable here.
+        informational: true
+
+# Entry points whose bodies are nothing but ultralytics calls — excluded from
+# coverage so the metric reflects testable code only.
+ignore:
+  - "src/ifcb_classify/chains/train.py"
+  - "src/ifcb_classify/chains/eval.py"

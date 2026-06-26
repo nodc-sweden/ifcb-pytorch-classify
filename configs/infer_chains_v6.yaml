@@ -1,0 +1,76 @@
+# Production inference config: SMHI-NIVA-SYKE-SAMS-SZN ResNet-50 V6 classifier
+# + chain counting for the trained chain-forming taxa.
+# Requires the 'chains' extra: uv pip install -e ".[chains]"
+#
+# Per-taxon NMS IoU values below were chosen from the chains-eval count-accuracy
+# sweep against each detector's val split (conf 0.25). Most taxa peak at IoU 0.30;
+# thalassiosira/thalassionema do marginally better at 0.50.
+#
+# This is a TEMPLATE: set the `/path/to/...` values for your machine. Detector
+# `weights` are repo-relative (models/chains/<taxon>/best.pt) — run from the repo
+# root, or rewrite them to an absolute path. (models/ is gitignored; weights are
+# distributed separately.)
+
+input_path: /path/to/bins                 # <-- set per run (a bin file or a directory of bins)
+model_checkpoint: /path/to/V6-resnet50_dataset_squarepad_augmented_b64_lr0.0001_e20_best.pt   # <-- set per machine
+output_dir: /path/to/class_scores         # <-- set per run
+batch_size: 64
+device: auto
+overwrite: false
+
+# Classifier decision thresholds (class_metrics JSON shipped with the model —
+# read directly by the pipeline's loader). ROIs below their class threshold become
+# "unclassified" and are not counted.
+thresholds_path: /path/to/V6-resnet50_dataset_squarepad_augmented_b64_lr0.0001_e20_thresholds_and_metrics.json   # <-- set per machine
+
+# Chain counting — only ROIs whose thresholded class_name matches a key are counted;
+# every other ROI gets cell_count = -1. Keys MUST match the classifier labels exactly.
+# Several labels share one genus detector (Thalassiosira x7, Chaetoceros x10).
+chain_counting:
+  enabled: true
+  conf: 0.25
+  iou: 0.30                                # default; per-model overrides below
+
+  models:
+    # --- single-label detectors -------------------------------------------------
+    Skeletonema_spp:             { weights: models/chains/skeletonema/best.pt, iou: 0.30 }
+    Pseudo-nitzschia_spp:        { weights: models/chains/pseudo-nitzschia/best.pt, iou: 0.30 }
+    Cerataulina_pelagica:        { weights: models/chains/cerataulina_pelagica/best.pt, iou: 0.30 }
+    Guinardia_delicatula:        { weights: models/chains/guinardia_delicatula/best.pt, iou: 0.30 }
+    Thalassionema_nitzschioides: { weights: models/chains/thalassionema_nitzschioides/best.pt, iou: 0.50 }
+
+    # Diatoma reuses the Thalassionema detector (same thin-rod chain morphology).
+    # No dedicated model: pre-annotation review judged it accurate at iou 0.50.
+    Diatoma_tenuis-like_chain:       { weights: models/chains/thalassionema_nitzschioides/best.pt, iou: 0.50 }
+    Diatoma_tenuis-like_single_cell: { weights: models/chains/thalassionema_nitzschioides/best.pt, iou: 0.50 }
+
+    # --- Leptocylindrus (detector trained on danicus+minimus combined) ----------
+    Leptocylindrus_danicus_Leptocylindrus_minimus: { weights: models/chains/leptocylindrus/best.pt, iou: 0.30 }
+    Leptocylindrus_danicus:                         { weights: models/chains/leptocylindrus/best.pt, iou: 0.30 }
+
+    # --- Thalassiosira genus detector (7 classifier labels) ---------------------
+    Thalassiosira_spp_chain:       { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_spp_single:      { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_angulata:        { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_anguste-lineata: { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_gravida-like:    { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_levanderi:       { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
+    Thalassiosira_nordenskioeldii: { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
+
+    # Cyclotella reuses the Thalassiosira detector (same centric morphology). No
+    # dedicated model: validated on 94 manually-counted images -> 95.7% exact,
+    # 100% within +/-1 at iou 0.50.
+    Cyclotella_spp:                { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
+
+    # --- Chaetoceros genus detector (10 classifier labels) ----------------------
+    # NOTE: weakest detector (val exact 62%, over-counts). Treat counts as approximate
+    # pending more training data; consider raising conf to curb over-counting.
+    Chaetoceros_spp_chain:                      { weights: models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_spp_single:                     { weights: models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_danicus:                        { weights: models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_decipiens:                      { weights: models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_diadema:                        { weights: models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_contortus:                      { weights: models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_cf_convolutus:                  { weights: models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_curvisetus_Chaetoceros_debilis: { weights: models/chains/chaetoceros/best.pt, iou: 0.30 }
+    Chaetoceros_tenuissimus-like:               { weights: models/chains/chaetoceros/best.pt, iou: 0.30 }

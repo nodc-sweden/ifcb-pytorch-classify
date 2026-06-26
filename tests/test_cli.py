@@ -46,6 +46,58 @@ def test_infer_parser_cli_only():
     assert args.output_dir == "/path/to/output"
 
 
+def test_chains_train_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "chains-train",
+        "--class-name", "Skeletonema",
+        "--data", "/data/skeletonema",
+        "--model", "yolo11x.pt",
+        "--epochs", "200",
+        "--device", "0",
+    ])
+    assert args.command == "chains-train"
+    assert args.class_name == "Skeletonema"
+    assert args.data == "/data/skeletonema"
+    assert args.model == "yolo11x.pt"
+    assert args.epochs == 200
+    assert args.device == "0"
+
+
+def test_chains_train_parser_with_config():
+    parser = build_parser()
+    args = parser.parse_args(["chains-train", "--config", "chains.yaml"])
+    assert args.command == "chains-train"
+    assert args.config == "chains.yaml"
+
+
+def test_run_cli_chains_train_missing_args_raises():
+    with pytest.raises(SystemExit, match="--config or both --class-name and --data"):
+        run_cli(["chains-train", "--class-name", "Skeletonema"])
+
+
+def test_chains_eval_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "chains-eval",
+        "--weights", "best.pt",
+        "--images", "/data/test",
+        "--counts-csv", "/data/test/counts.csv",
+        "--ious", "0.3,0.5",
+        "--limit", "50",
+    ])
+    assert args.command == "chains-eval"
+    assert args.weights == "best.pt"
+    assert args.counts_csv == "/data/test/counts.csv"
+    assert args.ious == "0.3,0.5"
+    assert args.limit == 50
+
+
+def test_run_cli_chains_eval_missing_args_raises():
+    with pytest.raises(SystemExit, match="--config or all of --weights, --images and --counts-csv"):
+        run_cli(["chains-eval", "--weights", "best.pt"])
+
+
 def test_normalise_parser():
     parser = build_parser()
     args = parser.parse_args(["normalise", "--data-dir", "/data"])
@@ -89,3 +141,15 @@ def test_infer_parser_allow_unsafe_default():
     parser = build_parser()
     args = parser.parse_args(["infer", "--config", "infer.yaml"])
     assert args.allow_unsafe is False
+
+
+def test_infer_parser_no_count():
+    parser = build_parser()
+    args = parser.parse_args(["infer", "--config", "infer.yaml", "--no-count"])
+    assert args.no_count is True
+
+
+def test_infer_parser_no_count_default():
+    parser = build_parser()
+    args = parser.parse_args(["infer", "--config", "infer.yaml"])
+    assert args.no_count is False

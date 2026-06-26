@@ -1,6 +1,6 @@
 [project]
 name = "ifcb-classify"
-version = "0.1.0"
+version = "0.2.0"
 description = "Pipeline for IFCB image classification using PyTorch"
 requires-python = ">=3.11,<3.13"
 dependencies = [
@@ -22,6 +22,7 @@ dependencies = [
 [project.optional-dependencies]
 mlflow = ["mlflow>=2.0"]
 wandb = ["wandb>=0.15"]
+chains = ["ultralytics>=8.3", "requests>=2.28"]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",

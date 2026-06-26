@@ -1,0 +1,33 @@
+# Configuration for training a YOLO chain-counting detector for one taxon.
+# Requires the optional 'chains' extra: uv pip install -e ".[chains]"
+
+# Taxon name (used in the run name and, later, to route inference counting):
+class_name: Skeletonema
+
+# Path to a YOLO data.yaml, or a dataset directory containing one.
+# A directory is searched for data.local.yaml first, then data.yaml.
+# Expected layout:
+#   <data>/
+#     data.yaml            # names + train/val image dirs
+#     images/train/*.png   labels/train/*.txt   (one .txt of boxes per image)
+#     images/val/*.png     labels/val/*.txt
+data: /path/to/datasets/skeletonema
+
+# Pretrained YOLO weights to fine-tune. Small (yolo11s.pt) is a good default and
+# fits an 8 GB GPU at imgsz 640 / batch 16. Drop to yolo11n.pt for CPU/very low
+# VRAM, or step up to yolo11x.pt on a large GPU (>=24 GB) for best accuracy.
+model: yolo11s.pt
+
+epochs: 100
+imgsz: 640
+batch: 16
+
+# 'cpu', or a GPU index like '0' (or '0,1' for multi-GPU).
+device: cpu
+
+# Early-stopping patience (epochs without improvement before stopping).
+patience: 20
+
+# Output directory for training runs (weights land under <project>/<name>/weights/best.pt).
+project: output/chains
+# name: chains_Skeletonema_yolo11s   # optional; derived from class + model if unset

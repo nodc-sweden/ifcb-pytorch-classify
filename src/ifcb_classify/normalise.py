@@ -1,3 +1,11 @@
+"""Compute dataset mean/std for the ``_normalised`` transform variants.
+
+Backs the ``normalise`` CLI command. The printed ``mean``/``std`` go into a
+training config so that ``*_normalised`` transforms can standardise inputs. Stats
+are computed in a single streaming pass (Welford's algorithm) using the
+non-normalised version of the chosen transform.
+"""
+
 import torch
 from torchvision import datasets
 
