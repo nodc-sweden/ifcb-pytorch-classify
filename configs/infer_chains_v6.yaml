@@ -39,6 +39,11 @@ chain_counting:
     Guinardia_delicatula:        { weights: models/chains/guinardia_delicatula/best.pt, iou: 0.30 }
     Thalassionema_nitzschioides: { weights: models/chains/thalassionema_nitzschioides/best.pt, iou: 0.50 }
 
+    # Diatoma reuses the Thalassionema detector (same thin-rod chain morphology).
+    # No dedicated model: pre-annotation review judged it accurate at iou 0.50.
+    Diatoma_tenuis-like_chain:       { weights: models/chains/thalassionema_nitzschioides/best.pt, iou: 0.50 }
+    Diatoma_tenuis-like_single_cell: { weights: models/chains/thalassionema_nitzschioides/best.pt, iou: 0.50 }
+
     # --- Leptocylindrus (detector trained on danicus+minimus combined) ----------
     Leptocylindrus_danicus_Leptocylindrus_minimus: { weights: models/chains/leptocylindrus/best.pt, iou: 0.30 }
     Leptocylindrus_danicus:                         { weights: models/chains/leptocylindrus/best.pt, iou: 0.30 }
@@ -51,6 +56,11 @@ chain_counting:
     Thalassiosira_gravida-like:    { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
     Thalassiosira_levanderi:       { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
     Thalassiosira_nordenskioeldii: { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
+
+    # Cyclotella reuses the Thalassiosira detector (same centric morphology). No
+    # dedicated model: validated on 94 manually-counted images -> 95.7% exact,
+    # 100% within +/-1 at iou 0.50.
+    Cyclotella_spp:                { weights: models/chains/thalassiosira/best.pt, iou: 0.50 }
 
     # --- Chaetoceros genus detector (10 classifier labels) ----------------------
     # NOTE: weakest detector (val exact 62%, over-counts). Treat counts as approximate
