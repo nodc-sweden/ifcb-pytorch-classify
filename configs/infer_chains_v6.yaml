@@ -24,7 +24,7 @@ overwrite: false
 thresholds_path: /path/to/V6-resnet50_dataset_squarepad_augmented_b64_lr0.0001_e20_thresholds_and_metrics.json   # <-- set per machine
 
 # Chain counting — only ROIs whose thresholded class_name matches a key are counted;
-# every other ROI gets chain_count = -1. Keys MUST match the classifier labels exactly.
+# every other ROI gets cell_count = -1. Keys MUST match the classifier labels exactly.
 # Several labels share one genus detector (Thalassiosira x7, Chaetoceros x10).
 chain_counting:
   enabled: true

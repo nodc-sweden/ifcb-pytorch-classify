@@ -216,7 +216,7 @@ See `configs/chains_train_default.yaml` for all options.
 
 Add a `chain_counting` block to your inference config to count cells while
 classifying. Only ROIs whose **thresholded `class_name`** matches a configured
-key are counted; all other ROIs get `chain_count = -1`.
+key are counted; all other ROIs get `cell_count = -1`.
 
 ```yaml
 chain_counting:
@@ -246,10 +246,18 @@ python -m ifcb_classify infer --config configs/infer_with_chains.yaml
 python -m ifcb_classify infer --config configs/infer_with_chains.yaml --no-count  # disable
 ```
 
-The output `_class.h5` gains a `chain_count` dataset (int32, one per ROI; `-1`
-where not counted) and a `chain_counter_models` JSON attribute recording the
+The output `_class.h5` gains a `cell_count` dataset (int32, one per ROI; `-1`
+where not counted) and a `cell_counter_models` JSON attribute recording the
 weights/IoU/conf used. Existing consumers ignore the extra dataset. See
 `configs/infer_with_chains.yaml` for a full example.
+
+> **What `cell_count` stores:** the **number of cells in that ROI** — i.e. the
+> number of boxes the detector found in the image. Each ROI is one chain/colony
+> (a chain, ribbon, fan, branched or spherical colony), and `cell_count` is how
+> many cells it contains; it is *not* a tally of chains. `-1` means the ROI was
+> not counted (not a counted taxon, or below its classifier threshold). The
+> feature is still called "chain counting" for historical reasons, but it counts
+> cells in colonies of any form.
 
 #### Counting on already-classified bins
 
@@ -271,7 +279,7 @@ python -m ifcb_classify chains-count \
     --config configs/infer_with_chains.yaml   # still needed for the detector block
 ```
 
-Each file's `chain_count` dataset is written in place. Files that already carry
+Each file's `cell_count` dataset is written in place. Files that already carry
 counts are skipped unless you pass `--overwrite`. The raw bins are still required
 (the `.h5` stores scores, not pixels), but the expensive ResNet pass is avoided.
 

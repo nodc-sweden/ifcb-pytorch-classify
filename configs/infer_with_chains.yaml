@@ -13,7 +13,7 @@ overwrite: false
 
 # Chain counting: count individual cells in ROIs of chain-forming taxa.
 # Only ROIs whose thresholded class_name matches a key below are counted;
-# all other ROIs get chain_count = -1 in the output HDF5.
+# all other ROIs get cell_count = -1 in the output HDF5.
 #
 # Keys MUST match the classifier's output labels exactly. Several labels may
 # share one detector (e.g. Thalassiosira species + the genus-level class).

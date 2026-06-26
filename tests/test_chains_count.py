@@ -79,8 +79,8 @@ def test_count_one_file_writes_counts(tmp_path, monkeypatch):
     count_mod._count_one_file(h5, {"D1": Path("ignored.roi")}, counter, overwrite=False)
 
     with h5py.File(h5, "r") as f:
-        counts = f["chain_count"][:]
-        meta = json.loads(f.attrs["chain_counter_models"])
+        counts = f["cell_count"][:]
+        meta = json.loads(f.attrs["cell_counter_models"])
     # ROIs 0 and 2 are Skeletonema (counted=10); ROI 1 is Other (-1).
     np.testing.assert_array_equal(counts, [10, -1, 10])
     # Only the gated ROIs' images were passed to the counter.
@@ -92,9 +92,9 @@ def test_count_one_file_skips_when_already_counted(tmp_path, monkeypatch):
     class_labels = ["Skeletonema"]
     h5 = tmp_path / "D1_class.h5"
     _write_scores_file(h5, class_labels, ["Skeletonema"], [5], [np.nan])
-    # Seed an existing chain_count dataset.
+    # Seed an existing cell_count dataset.
     with h5py.File(h5, "a") as f:
-        f.create_dataset("chain_count", data=np.array([99], dtype=np.int32))
+        f.create_dataset("cell_count", data=np.array([99], dtype=np.int32))
 
     called = []
     monkeypatch.setattr(count_mod, "iter_bin_images", lambda p: called.append(p) or [])
@@ -102,7 +102,7 @@ def test_count_one_file_skips_when_already_counted(tmp_path, monkeypatch):
     count_mod._count_one_file(h5, {"D1": Path("x.roi")}, counter, overwrite=False)
 
     with h5py.File(h5, "r") as f:
-        assert f["chain_count"][:].tolist() == [99]  # untouched
+        assert f["cell_count"][:].tolist() == [99]  # untouched
     assert called == []  # bin never opened
 
 
@@ -111,14 +111,14 @@ def test_count_one_file_overwrite_recounts(tmp_path, monkeypatch):
     h5 = tmp_path / "D1_class.h5"
     _write_scores_file(h5, class_labels, ["Skeletonema"], [5], [np.nan])
     with h5py.File(h5, "a") as f:
-        f.create_dataset("chain_count", data=np.array([99], dtype=np.int32))
+        f.create_dataset("cell_count", data=np.array([99], dtype=np.int32))
 
     monkeypatch.setattr(count_mod, "iter_bin_images", lambda p: [(5, "img5")])
     counter = _StubCounter(handled=["Skeletonema"])
     count_mod._count_one_file(h5, {"D1": Path("x.roi")}, counter, overwrite=True)
 
     with h5py.File(h5, "r") as f:
-        assert f["chain_count"][:].tolist() == [10]
+        assert f["cell_count"][:].tolist() == [10]
 
 
 def test_count_one_file_no_gated_writes_all_sentinel(tmp_path, monkeypatch):
@@ -132,7 +132,7 @@ def test_count_one_file_no_gated_writes_all_sentinel(tmp_path, monkeypatch):
     count_mod._count_one_file(h5, {"D1": Path("x.roi")}, counter, overwrite=False)
 
     with h5py.File(h5, "r") as f:
-        np.testing.assert_array_equal(f["chain_count"][:], [-1, -1])
+        np.testing.assert_array_equal(f["cell_count"][:], [-1, -1])
     assert called == []  # no countable ROIs, so the bin is never opened
 
 
@@ -145,7 +145,7 @@ def test_count_one_file_missing_bin_writes_sentinel(tmp_path):
     # schema stays uniform with the no-countable-ROIs case.
     count_mod._count_one_file(h5, {}, counter, overwrite=False)
     with h5py.File(h5, "r") as f:
-        np.testing.assert_array_equal(f["chain_count"][:], [-1])
+        np.testing.assert_array_equal(f["cell_count"][:], [-1])
 
 
 # --- count_main integration --------------------------------------------------

@@ -1,6 +1,6 @@
 """Count-only pass: add chain counts to already-classified bins.
 
-``count_main`` backfills the additive ``chain_count`` dataset onto existing
+``count_main`` backfills the additive ``cell_count`` dataset onto existing
 ``{lid}_class.h5`` files without re-running the classifier. It reuses the final
 (thresholded) ``class_name`` already stored in each file to decide which ROIs to
 count, reads only those ROIs' pixels from the matching raw ``.roi`` bin, runs the
@@ -32,7 +32,7 @@ def count_main(config: InferConfig) -> None:
 
     Walks every ``*_class.h5`` under ``config.output_dir``, counts cells for the
     ROIs whose stored ``class_name`` is configured for counting, and writes the
-    ``chain_count`` dataset back in place. Files that already carry counts are
+    ``cell_count`` dataset back in place. Files that already carry counts are
     skipped unless ``config.overwrite`` is set. Raises :class:`ValueError` if the
     config has no enabled ``chain_counting`` block.
     """
@@ -89,7 +89,7 @@ def _index_bins(input_path: Path) -> dict[str, Path]:
 
 
 def _count_one_file(h5_path: Path, bin_index: dict[str, Path], counter, overwrite: bool) -> None:
-    """Count one class-score file and write its ``chain_count`` dataset in place.
+    """Count one class-score file and write its ``cell_count`` dataset in place.
 
     Skips files that already carry counts (unless ``overwrite``). Files with no
     countable ROIs — and files whose source bin can't be found — still get an
@@ -98,7 +98,7 @@ def _count_one_file(h5_path: Path, bin_index: dict[str, Path], counter, overwrit
     lid = h5_path.name.removesuffix("_class.h5")
 
     with h5py.File(h5_path, "r") as f:
-        if "chain_count" in f and not overwrite:
+        if "cell_count" in f and not overwrite:
             logger.info("Skipping (already counted): %s", h5_path.name)
             return
         class_name = [_decode(v) for v in f["class_name"][:]]
@@ -137,12 +137,12 @@ def _load_images(bin_path: Path, targets: set[int]) -> dict[int, object]:
 
 
 def _write_counts(h5_path: Path, counts: np.ndarray, models_meta: dict) -> None:
-    """Write (or replace) the ``chain_count`` dataset and provenance attribute."""
+    """Write (or replace) the ``cell_count`` dataset and provenance attribute."""
     with h5py.File(h5_path, "a") as f:
-        if "chain_count" in f:
-            del f["chain_count"]
-        f.create_dataset("chain_count", data=counts.astype(np.int32))
-        f.attrs["chain_counter_models"] = json.dumps(models_meta)
+        if "cell_count" in f:
+            del f["cell_count"]
+        f.create_dataset("cell_count", data=counts.astype(np.int32))
+        f.attrs["cell_counter_models"] = json.dumps(models_meta)
 
 
 def _decode(value) -> str:

@@ -239,15 +239,15 @@ def _batch_predict(model, images, device, batch_size):
 def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, counter=None, raw_images=None):
     """Compute optional chain counts and write the HDF5 class-scores file for a bin."""
     roi_numbers = np.array(target_numbers, dtype=np.int32)
-    chain_counts, models_meta = _compute_chain_counts(scores, class_names, thresholds, counter, raw_images)
+    cell_counts, models_meta = _compute_cell_counts(scores, class_names, thresholds, counter, raw_images)
     output_path = _output_path_for_lid(output_dir, lid)
     write_class_scores(
         output_path, scores, class_names, roi_numbers, classifier_name, thresholds,
-        chain_counts=chain_counts, chain_counter_models=models_meta,
+        cell_counts=cell_counts, cell_counter_models=models_meta,
     )
-    if chain_counts is not None:
-        n_counted = int((chain_counts >= 0).sum())
-        total_cells = int(chain_counts[chain_counts >= 0].sum())
+    if cell_counts is not None:
+        n_counted = int((cell_counts >= 0).sum())
+        total_cells = int(cell_counts[cell_counts >= 0].sum())
         logger.info(
             "Wrote: %s (%d ROIs, %d chain-counted, %d cells)",
             output_path.name, len(target_numbers), n_counted, total_cells,
@@ -256,10 +256,10 @@ def _write_output(output_dir, lid, scores, class_names, target_numbers, classifi
         logger.info("Wrote: %s (%d ROIs)", output_path.name, len(target_numbers))
 
 
-def _compute_chain_counts(scores, class_names, thresholds, counter, raw_images):
+def _compute_cell_counts(scores, class_names, thresholds, counter, raw_images):
     """Count cells for ROIs whose thresholded class is configured for counting.
 
-    Returns ``(chain_counts, models_metadata)`` or ``(None, None)`` when counting
+    Returns ``(cell_counts, models_metadata)`` or ``(None, None)`` when counting
     is disabled. Uncounted ROIs get the sentinel ``-1``.
     """
     if counter is None:

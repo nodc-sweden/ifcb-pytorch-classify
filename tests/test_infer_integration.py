@@ -108,7 +108,7 @@ def test_classify_directory_writes_outputs(tmp_path, monkeypatch):
     assert (tmp_path / "D2_class.h5").exists()
     with h5py.File(tmp_path / "D1_class.h5", "r") as f:
         assert f["roi_numbers"][:].tolist() == [0, 1]
-        assert "chain_count" not in f
+        assert "cell_count" not in f
 
 
 def test_classify_directory_skips_existing(tmp_path, monkeypatch):
@@ -148,8 +148,8 @@ def test_classify_directory_with_counter(tmp_path, monkeypatch):
     )
 
     with h5py.File(tmp_path / "D1_class.h5", "r") as f:
-        np.testing.assert_array_equal(f["chain_count"][:], [7, 7])
-        assert "chain_counter_models" in f.attrs
+        np.testing.assert_array_equal(f["cell_count"][:], [7, 7])
+        assert "cell_counter_models" in f.attrs
 
 
 @pytest.mark.slow
