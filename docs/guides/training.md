@@ -30,6 +30,26 @@ training_data/V1/
   ...
 ```
 
+## Labelling images
+
+Building this dataset means sorting IFCB ROIs into per-class folders. This
+pipeline does not include an annotation tool, but several dedicated IFCB image
+annotators exist — pick whichever fits your stack:
+
+| Tool | Language | Link |
+|---|---|---|
+| ClassiPyR | R | <https://github.com/EuropeanIFCBGroup/ClassiPyR> |
+| SAMS IFCB Annotator | Python | <https://github.com/EuropeanIFCBGroup/SAMS_IFCBAnnotator> |
+| ifcb-analysis | MATLAB | <https://github.com/hsosik/ifcb-analysis> |
+
+Export the labelled ROIs as one folder per class (as above), then point
+`train` at that directory.
+
+!!! note
+    This is image-level labelling for **classification** (what each ROI is),
+    which is separate from the bounding-box annotation used for
+    [chain counting](chain-counting.md) (how many cells are in an ROI).
+
 ## Evaluation plots
 
 Add `--plots` to generate evaluation plots after training:
