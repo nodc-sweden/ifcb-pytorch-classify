@@ -63,6 +63,7 @@ See [Getting started](docs/getting-started.md) for the full walkthrough, and
 | [Chain counting](docs/guides/chain-counting.md) | Per-taxon YOLO cell counting |
 | [Chain-counting annotation](docs/guides/chain-counting-annotation.md) | Labelling workflow for chain detectors |
 | [Configuration](docs/configuration.md) | Config parameters and date placeholders |
+| [Troubleshooting](docs/troubleshooting.md) | Fixes for common install/run errors |
 
 The rendered site (with the auto-generated API reference) is at
 <https://nodc-sweden.github.io/ifcb-pytorch-classify/>.

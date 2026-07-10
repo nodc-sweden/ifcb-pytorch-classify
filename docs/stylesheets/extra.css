@@ -1,0 +1,19 @@
+/* Make the top-level nav section headers (Get started, Guides, Reference) read
+   as clear group labels instead of blending in with the page links beneath
+   them. Selectors target only the first-level sections in the primary sidebar
+   nav; the second rule covers the "API reference" section, whose header is a
+   link (md-nav__container) rather than a plain label. */
+.md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link,
+.md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link > a {
+  color: var(--md-primary-fg-color);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.64rem;
+  opacity: 1;
+}
+
+/* Add breathing room above each section so the groups are visually distinct. */
+.md-nav--primary > .md-nav__list > .md-nav__item--section {
+  margin-top: 0.9rem;
+}

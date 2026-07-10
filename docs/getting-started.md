@@ -106,5 +106,6 @@ output details.
 
 - [Concepts & glossary](concepts.md) — what the terms mean if any were unfamiliar
 - [Configuration](configuration.md) — all training/inference options
+- [Troubleshooting](troubleshooting.md) — fixes for common install and run errors
 - [Chain counting](guides/chain-counting.md) — count cells in chain-forming taxa
 - [API reference](reference/ifcb_classify/index.md) — the Python API

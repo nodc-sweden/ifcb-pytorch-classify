@@ -33,6 +33,7 @@ plankton images using PyTorch.
 | Classify raw bins | [Inference](guides/inference.md) |
 | Count cells in chains/colonies | [Chain counting](guides/chain-counting.md) |
 | Look up config options | [Configuration](configuration.md) |
+| Fix a common error | [Troubleshooting](troubleshooting.md) |
 | Browse the code API | [API reference](reference/ifcb_classify/index.md) |
 
 The project lives on

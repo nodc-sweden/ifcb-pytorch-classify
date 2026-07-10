@@ -55,6 +55,20 @@ uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu
 uv pip install -e .
 ```
 
+## Verify the install
+
+Check that the package imports and see whether PyTorch found a GPU:
+
+```bash
+python -c "import torch; print('torch', torch.__version__); print('CUDA available:', torch.cuda.is_available())"
+ifcb-classify --help
+```
+
+`CUDA available: True` means training will use the GPU automatically. `False`
+is expected for a CPU-only install (the walkthrough still works, just slower);
+if you installed the CUDA build and still see `False`, see
+[Troubleshooting → PyTorch doesn't see my GPU](troubleshooting.md#pytorch-doesnt-see-my-gpu).
+
 ## Optional extras
 
 ```bash
