@@ -19,6 +19,31 @@ See [Configuration](../configuration.md) for the full list of training
 parameters and their defaults. New to terms like *epoch*, *learning rate*, or
 *fine-tuning*? See [Concepts & glossary](../concepts.md).
 
+## Supported models
+
+`--model` (or `model:` in the config) accepts any of **52 torchvision
+architectures** across these families, all fine-tuned from ImageNet-pretrained
+weights:
+
+| Family | Examples |
+|---|---|
+| ResNet / Wide ResNet / ResNeXt | `resnet18`, `resnet50` (default), `resnet152`, `wide_resnet50_2`, `resnext50_32x4d` |
+| ConvNeXt | `convnext_tiny`, `convnext_small`, `convnext_base`, `convnext_large` |
+| EfficientNetV2 | `efficientnet_v2_s`, `efficientnet_v2_m`, `efficientnet_v2_l` |
+| Vision Transformers | `vit_b_16`, `vit_l_16`, `swin_v2_t`, `maxvit_t` |
+| VGG / DenseNet / MobileNet / others | `vgg16`, `densenet121`, `mobilenet_v3_large`, `mnasnet1_0`, `alexnet`, … |
+
+To see the exact list of accepted names, run:
+
+```bash
+ifcb-classify list-models
+```
+
+The full registry (with the classifier-head details for each) is in the
+[`models.registry`](reference/ifcb_classify/models/registry.md) API reference.
+Bigger models are generally more accurate but slower and more memory-hungry; the
+default `resnet50` is a solid all-round starting point.
+
 ## Hardware and training time
 
 Training is much faster on an NVIDIA **GPU** (`cuda`) than on **CPU**. The device
