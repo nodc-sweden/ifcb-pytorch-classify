@@ -3,6 +3,16 @@
 Requires Python 3.11–3.12, PyTorch, and
 [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
+## Get the code
+
+Clone the repository and enter it first — the install commands below do an
+editable install of the local checkout (`uv pip install -e .`):
+
+```bash
+git clone https://github.com/nodc-sweden/ifcb-pytorch-classify.git
+cd ifcb-pytorch-classify
+```
+
 ## CPU only
 
 **Linux/macOS:**

@@ -16,7 +16,13 @@ checkpoint, ROI, bin)? See [Concepts & glossary](concepts.md) first.
 Requires Python 3.11–3.12 and
 [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
+Clone the repository, then set up a virtual environment and install the package
+(the `-e .` editable install needs the local checkout, and the walkthrough below
+uses files from it such as `configs/` and `example_data/`):
+
 ```bash
+git clone https://github.com/nodc-sweden/ifcb-pytorch-classify.git
+cd ifcb-pytorch-classify
 uv venv
 source .venv/bin/activate    # Windows: .venv\Scripts\activate
 uv pip install -e .
