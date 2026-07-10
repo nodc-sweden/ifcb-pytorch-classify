@@ -123,6 +123,9 @@ def build_parser() -> argparse.ArgumentParser:
     norm_parser.add_argument("--height", type=int, default=224)
     norm_parser.add_argument("-v", "--verbose", action="store_true")
 
+    # --- list-models ---
+    subparsers.add_parser("list-models", help="List the model architectures accepted by 'train --model'")
+
     return parser
 
 
@@ -150,6 +153,8 @@ def run_cli(args=None) -> None:
         _run_chains_eval(parsed)
     elif parsed.command == "normalise":
         _run_normalise(parsed)
+    elif parsed.command == "list-models":
+        _run_list_models(parsed)
 
 
 def _run_train(parsed) -> None:
@@ -281,3 +286,13 @@ def _run_normalise(parsed) -> None:
     )
     print(f"mean: {mean:.4f}")
     print(f"std: {std:.4f}")
+
+
+def _run_list_models(parsed) -> None:
+    """Handle ``list-models``: print the model names accepted by ``train --model``."""
+    from ifcb_classify.models.registry import available_models
+
+    names = available_models()
+    print(f"{len(names)} model architectures available (use with 'train --model <name>'):")
+    for name in names:
+        print(f"  {name}")

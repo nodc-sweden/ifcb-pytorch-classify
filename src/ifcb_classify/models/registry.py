@@ -107,3 +107,8 @@ MODELS: dict[str, ModelSpec] = {
     "wide_resnet50_2": ModelSpec(tv.wide_resnet50_2, "fc", 2048),
     "wide_resnet101_2": ModelSpec(tv.wide_resnet101_2, "fc", 2048),
 }
+
+
+def available_models() -> list[str]:
+    """Return the sorted model names accepted by ``--model`` / the ``model`` config field."""
+    return sorted(MODELS)
