@@ -15,9 +15,24 @@ python -m ifcb_classify train --config configs/train_default.yaml \
     --model convnext_tiny --lr 0.001 --epochs 30
 ```
 
-See [Configuration](../configuration.md) for the full list of training
-parameters and their defaults. New to terms like *epoch*, *learning rate*, or
-*fine-tuning*? See [Concepts & glossary](../concepts.md).
+New to terms like *epoch*, *learning rate*, or *fine-tuning*? See
+[Concepts & glossary](../concepts.md).
+
+## Configuration files
+
+Training is driven by a **YAML config file**, passed with `--config` (required
+for `train`).
+[`configs/train_default.yaml`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/configs/train_default.yaml)
+is a ready-to-use, commented template covering every option — copy it and edit it
+for your own runs (data directory, model, learning rate, and so on).
+
+Any setting can also be **overridden on the command line** — as with `--model`,
+`--lr` and `--epochs` above — and CLI values take precedence over the file. A
+common workflow is to keep one config per dataset or experiment and tweak the odd
+parameter on the CLI.
+
+See [Configuration](../configuration.md) for the full parameter reference and
+defaults.
 
 ## Supported models
 
