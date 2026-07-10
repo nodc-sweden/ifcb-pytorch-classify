@@ -38,11 +38,12 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - Installation: installation.md
+  - Concepts & glossary: concepts.md
   - Guides:
       - Training: guides/training.md
       - Inference: guides/inference.md
       - Chain counting: guides/chain-counting.md
-      - Annotation & training: guides/chain-counting-annotation.md
+      - Chain-counting annotation: guides/chain-counting-annotation.md
   - Configuration: configuration.md
   - API reference: reference/
 

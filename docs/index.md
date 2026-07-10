@@ -28,6 +28,7 @@ plankton images using PyTorch.
 |---|---|
 | Get up and running quickly | [Getting started](getting-started.md) |
 | Install with CUDA or optional extras | [Installation](installation.md) |
+| Understand the terminology | [Concepts & glossary](concepts.md) |
 | Train a classifier | [Training](guides/training.md) |
 | Classify raw bins | [Inference](guides/inference.md) |
 | Count cells in chains/colonies | [Chain counting](guides/chain-counting.md) |

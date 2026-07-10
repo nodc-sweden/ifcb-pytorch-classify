@@ -31,7 +31,7 @@ uv pip install -e ".[chains]"
 
 !!! tip "Annotating efficiently"
     Drawing every bounding box by hand is slow. See
-    [Annotation & training](chain-counting-annotation.md) for the full
+    [Chain-counting annotation](chain-counting-annotation.md) for the full
     workflow — Label Studio setup, annotation conventions, the bootstrap loop
     (pre-annotate with a model, then *correct* its boxes), `--imgsz` guidance,
     and the helper scripts that support it.
