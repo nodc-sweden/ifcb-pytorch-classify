@@ -33,6 +33,25 @@ def test_infer_config_defaults():
     assert config.batch_size == 64
     assert config.device == "auto"
     assert config.threshold_default == 0.0
+    assert config.resolved_formats() == ("h5",)
+
+
+def test_infer_config_resolved_formats():
+    assert InferConfig(output_format="csv").resolved_formats() == ("csv",)
+    # comma-separated string, order preserved and de-duplicated
+    assert InferConfig(output_format="h5,csv,mat").resolved_formats() == ("h5", "csv", "mat")
+    assert InferConfig(output_format="csv, csv , h5").resolved_formats() == ("csv", "h5")
+    # YAML list form
+    assert InferConfig(output_format=["mat", "h5"]).resolved_formats() == ("mat", "h5")
+    # csv-labels (hyphenated token) parses
+    assert InferConfig(output_format="h5,csv-labels").resolved_formats() == ("h5", "csv-labels")
+    # "all" expands to every format
+    assert InferConfig(output_format="all").resolved_formats() == ("h5", "csv", "mat", "csv-labels")
+
+
+def test_infer_config_invalid_format():
+    with pytest.raises(ValueError, match="Unknown output format"):
+        InferConfig(output_format="parquet")
 
 
 def test_date_placeholder_expansion(tmp_path):

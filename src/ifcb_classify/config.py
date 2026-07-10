@@ -81,6 +81,9 @@ class TrainConfig:
             raise ValueError(f"image dimensions must be positive, got {self.image_width}x{self.image_height}")
 
 
+VALID_OUTPUT_FORMATS = ("h5", "csv", "mat", "csv-labels")
+
+
 @dataclass(frozen=True)
 class InferConfig:
     """Validated settings for an inference run (see ``configs/infer_default.yaml``).
@@ -89,6 +92,11 @@ class InferConfig:
     auto-detected next to the checkpoint. ``chain_counting`` holds the raw YAML
     block (parsed lazily into a ``ChainCountingConfig`` only if counting runs).
     ``allow_unsafe`` permits loading legacy raw-state-dict checkpoints.
+    ``output_format`` selects which class-scores file(s) to write per bin: any of
+    ``h5`` (default, IFCB Dashboard class_scores v3), ``csv`` (the dashboard's
+    per-ROI scores export), ``mat`` (dashboard-ingestible v1 ``.mat``) and
+    ``csv-labels`` (the ClassiPyR/iRfcb per-ROI resolved-label CSV). Accepts a
+    single value, a comma-separated string, a YAML list, or ``"all"``.
     """
 
     input_path: str = ""
@@ -106,6 +114,7 @@ class InferConfig:
     num_threads: int | None = None
     allow_unsafe: bool = False
     chain_counting: dict | None = None
+    output_format: str | list[str] = "h5"
 
     def __post_init__(self):
         """Validate the numeric fields most likely to be misconfigured."""
@@ -113,6 +122,31 @@ class InferConfig:
             raise ValueError(f"batch_size must be >= 1, got {self.batch_size}")
         if self.num_threads is not None and self.num_threads < 1:
             raise ValueError(f"num_threads must be >= 1, got {self.num_threads}")
+        self.resolved_formats()  # validate output_format early
+
+    def resolved_formats(self) -> tuple[str, ...]:
+        """Return the requested output formats as an ordered, de-duplicated tuple.
+
+        Parses ``output_format`` (string, comma-separated string, list, or the
+        special value ``"all"``) into a subset of :data:`VALID_OUTPUT_FORMATS`,
+        preserving request order. Raises ``ValueError`` on an unknown format.
+        """
+        raw = self.output_format
+        items = raw.split(",") if isinstance(raw, str) else list(raw)
+        items = [str(x).strip().lower() for x in items if str(x).strip()]
+        if not items:
+            items = ["h5"]
+
+        resolved: list[str] = []
+        for item in items:
+            candidates = VALID_OUTPUT_FORMATS if item == "all" else (item,)
+            for fmt in candidates:
+                if fmt not in VALID_OUTPUT_FORMATS:
+                    valid = ", ".join(VALID_OUTPUT_FORMATS)
+                    raise ValueError(f"Unknown output format {fmt!r}; valid: {valid} (or 'all')")
+                if fmt not in resolved:
+                    resolved.append(fmt)
+        return tuple(resolved)
 
 
 def load_config(yaml_path: str | Path, config_cls: type, overrides: dict | None = None):

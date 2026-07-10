@@ -7,6 +7,11 @@ threshold_default: 0.0
 device: auto
 overwrite: false
 
+# Output format(s) per bin: h5 (default) | csv | mat | csv-labels | comma-separated | all.
+# h5 = class_scores v3 HDF5; csv = dashboard scores export; mat = v1 .mat;
+# csv-labels = ClassiPyR/iRfcb per-ROI resolved-label CSV ({lid}.csv).
+# output_format: h5
+
 # Limit CPU threads for inference (default: use all available cores):
 # num_threads: 4
 

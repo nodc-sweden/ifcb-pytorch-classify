@@ -64,6 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
     infer_parser.add_argument("--classifier-name", dest="classifier_name")
     infer_parser.add_argument("--classes", dest="classes_path", help="Path to classes.txt (auto-detected from model dir if not set)")
     infer_parser.add_argument("--model-name", dest="model_name", help="Model architecture name for legacy checkpoints (e.g. resnet50)")
+    infer_parser.add_argument("--format", dest="output_format", help="Output format(s): h5 (default), csv, mat, csv-labels, comma-separated (e.g. h5,csv-labels), or 'all'")
     infer_parser.add_argument("--overwrite", action="store_true", default=False, help="Overwrite existing output files (default: skip)")
     infer_parser.add_argument("--num-threads", dest="num_threads", type=int, help="Limit CPU threads for inference (default: all cores)")
     infer_parser.add_argument("--allow-unsafe", dest="allow_unsafe", action="store_true", default=False, help="Allow unsafe checkpoint loading for legacy .pt files")
