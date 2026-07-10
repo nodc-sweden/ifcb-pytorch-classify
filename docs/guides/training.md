@@ -40,7 +40,7 @@ ifcb-classify list-models
 ```
 
 The full registry (with the classifier-head details for each) is in the
-[`models.registry`](reference/ifcb_classify/models/registry.md) API reference.
+[`models.registry`](../reference/ifcb_classify/models/registry.md) API reference.
 Bigger models are generally more accurate but slower and more memory-hungry; the
 default `resnet50` is a solid all-round starting point.
 

@@ -10,7 +10,7 @@
 
 Pipeline for training and running inference on IFCB (Imaging FlowCytobot) plankton images using PyTorch.
 
-📖 **Full documentation: <https://nodc-sweden.github.io/ifcb-pytorch-classify/>**
+**Full documentation: <https://nodc-sweden.github.io/ifcb-pytorch-classify/>**
 
 ## Capabilities
 
