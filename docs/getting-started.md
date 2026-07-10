@@ -28,6 +28,11 @@ source .venv/bin/activate    # Windows: .venv\Scripts\activate
 uv pip install -e .
 ```
 
+This installs the CPU build of PyTorch, which is enough for this walkthrough.
+**Training is much faster on an NVIDIA GPU** — for a CUDA build (and optional
+extras like MLflow or chain counting), see
+[Installation → With CUDA](installation.md#with-cuda).
+
 ## 2. Get some training data
 
 Training expects **one folder per class**, each folder full of the ROI images
