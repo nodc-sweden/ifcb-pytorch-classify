@@ -13,9 +13,9 @@ then open a new terminal so the updated `PATH` takes effect.
 
 ### Wrong Python version
 
-The package needs Python 3.11 or 3.12. Check with `python --version`. If your
-default Python is older or newer, point `uv venv` at a compatible interpreter,
-e.g. `uv venv --python 3.12`.
+The package needs Python 3.11–3.14. Check with `python --version`. If your
+default Python is outside that range, point `uv venv` at a compatible
+interpreter, e.g. `uv venv --python 3.12`.
 
 ### `ifcb-classify: command not found`
 

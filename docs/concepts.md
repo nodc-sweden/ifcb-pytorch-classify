@@ -101,7 +101,7 @@ this pipeline classifies and counts.
 - **`.adc`** — per-ROI metadata (position, size, etc.).
 - **`.hdr`** — sample-level header/settings.
 
-Inference reads bins directly (via [pyifcb](https://github.com/joefutrelle/pyifcb));
+Inference reads bins directly (via [ifcbkit](https://github.com/WHOIGit/ifcbkit));
 you don't extract the ROIs to PNGs yourself.
 
 **Chain / colony** — many plankton grow as multi-celled units in a single ROI
