@@ -2,7 +2,7 @@
 name = "ifcb-classify"
 version = "0.2.0"
 description = "Pipeline for IFCB image classification using PyTorch"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.15"
 dependencies = [
     "torch>=2.0",
     "torchvision>=0.15",
@@ -16,7 +16,7 @@ dependencies = [
     "pyyaml>=6.0",
     "matplotlib>=3.7",
     "plotly>=5.0",
-    "pyifcb @ git+https://github.com/joefutrelle/pyifcb@v1.3.0",
+    "ifcbkit @ git+https://github.com/WHOIGit/ifcbkit@v0.2.1",
 ]
 
 [project.optional-dependencies]

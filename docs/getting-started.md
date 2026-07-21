@@ -6,7 +6,7 @@ optional extras, see [Installation](installation.md).
 
 ## 1. Install (CPU)
 
-Requires Python 3.11–3.12 and
+Requires Python 3.11–3.14 and
 [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash

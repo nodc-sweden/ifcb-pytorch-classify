@@ -32,7 +32,7 @@ jobs:
 
       - name: Install docs dependencies
         # mkdocstrings reads the source statically (griffe), so the package's
-        # heavy runtime deps (torch, pyifcb) are not needed to build the docs.
+        # heavy runtime deps (torch, ifcbkit) are not needed to build the docs.
         run: >
           uv pip install
           mkdocs

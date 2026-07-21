@@ -9,7 +9,7 @@ plankton images using PyTorch.
   ConvNeXt, Vision Transformers, etc.) on class-folder organised image datasets,
   with optional evaluation plots (static PNG + interactive HTML)
 - **Inference** — Batch-classify raw IFCB bins (`.roi/.adc/.hdr`) via
-  [pyifcb](https://github.com/joefutrelle/pyifcb) into HDF5 files in IFCB
+  [ifcbkit](https://github.com/WHOIGit/ifcbkit) into HDF5 files in IFCB
   Dashboard class_scores v3 format, with per-class decision thresholds; output
   works with the IFCB Dashboard,
   [iRfcb](https://europeanifcbgroup.github.io/iRfcb/) and

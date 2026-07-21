@@ -188,8 +188,8 @@ def _classify_directory(
 ):
     """Classify every bin in a directory, skipping ones already classified.
 
-    Each bin is opened with a context manager so its file handles are released
-    before moving on — important when scanning large directories of bins.
+    Bins are discovered up front but read one at a time, so only a single bin's
+    ROIs are in memory while scanning large directories.
     """
     for lid, fbin in iter_directory_bins(dir_path):
         out_path = _output_path_for_lid(output_dir, lid)
@@ -205,12 +205,11 @@ def _classify_directory(
         # See _classify_bin_file: raw PILs are retained for the whole bin when
         # counting, since the countable ROIs aren't known until classification.
         raw_images = [] if counter is not None else None
-        with fbin:
-            for target_num, img in iter_bin_images(fbin):
-                target_numbers.append(target_num)
-                images.append(transform(img))
-                if raw_images is not None:
-                    raw_images.append(img)
+        for target_num, img in iter_bin_images(fbin):
+            target_numbers.append(target_num)
+            images.append(transform(img))
+            if raw_images is not None:
+                raw_images.append(img)
 
         if not images:
             logger.warning("No images in bin: %s", lid)

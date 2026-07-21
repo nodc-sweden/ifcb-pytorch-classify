@@ -1,53 +1,72 @@
-"""Thin wrapper over pyifcb for reading ROIs out of raw IFCB bins.
+"""Thin wrapper over ifcbkit for reading ROIs out of raw IFCB bins.
 
 A raw IFCB bin is a three-file set (``.adc``/``.roi``/``.hdr``) sharing one base
 name (the *LID*, which encodes the instrument and timestamp). These helpers
-isolate the rest of the pipeline from the ``ifcb`` package: they yield decoded
+isolate the rest of the pipeline from the ``ifcbkit`` package: they yield decoded
 RGB images per ROI, iterate the bins in a directory, and extract a bin's LID
-from any of its file paths. The ``ifcb`` import is deferred into the functions so
-importing this module is cheap and doesn't hard-require pyifcb.
+from any of its file paths. The ``ifcbkit`` import is deferred into the functions
+so importing this module is cheap and doesn't hard-require ifcbkit.
 """
 
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
 from PIL import Image
 
 
-def iter_bin_images(bin_source) -> Iterator[tuple[int, Image.Image]]:
+@dataclass(frozen=True)
+class BinFiles:
+    """The resolved ``.adc`` and ``.roi`` paths of a single bin, plus its LID."""
+
+    lid: str
+    adc_path: Path
+    roi_path: Path
+
+
+def iter_bin_images(bin_source: str | Path | BinFiles) -> Iterator[tuple[int, Image.Image]]:
     """Yield (target_number, RGB PIL Image) for each ROI in an IFCB bin.
 
     bin_source can be a file path (str/Path) to any of the three fileset files
-    (.adc, .roi, .hdr), or an already-opened bin object.
+    (.adc, .roi, .hdr), or a :class:`BinFiles` from :func:`iter_directory_bins`.
     """
     if isinstance(bin_source, (str, Path)):
-        from ifcb import open_raw
-
-        fbin = open_raw(str(bin_source))
-        with fbin:
-            yield from _iter_images_from_bin(fbin)
-    else:
-        yield from _iter_images_from_bin(bin_source)
+        bin_source = _resolve_bin_files(bin_source)
+    yield from _iter_images_from_bin(bin_source)
 
 
-def _iter_images_from_bin(fbin) -> Iterator[tuple[int, Image.Image]]:
-    """Yield ``(target_number, RGB image)`` from an already-opened pyifcb bin."""
-    for target_num in fbin.images.index:
-        arr = fbin.images[target_num]
-        img = Image.fromarray(np.asarray(arr, dtype=np.uint8))
-        if img.mode != "RGB":
-            img = img.convert("RGB")
-        yield target_num, img
+def _resolve_bin_files(bin_path: str | Path) -> BinFiles:
+    """Locate a bin's ``.adc``/``.roi`` siblings from any one of its file paths."""
+    path = Path(bin_path)
+    lid = get_bin_lid(path)
+    files = BinFiles(lid=lid, adc_path=path.with_name(f"{lid}.adc"), roi_path=path.with_name(f"{lid}.roi"))
+
+    missing = [p for p in (files.adc_path, files.roi_path) if not p.is_file()]
+    if missing:
+        raise FileNotFoundError(f"Incomplete fileset for bin {lid}: missing {', '.join(str(p) for p in missing)}")
+
+    return files
 
 
-def iter_directory_bins(dir_path: str | Path) -> Iterator[tuple[str, object]]:
-    """Yield (bin_lid, bin_object) for each bin in a DataDirectory."""
-    from ifcb import DataDirectory
+def _iter_images_from_bin(files: BinFiles) -> Iterator[tuple[int, Image.Image]]:
+    """Yield ``(target_number, RGB image)`` in ascending target order."""
+    from ifcbkit import bin_images
 
-    dd = DataDirectory(str(dir_path))
-    for fbin in dd:
-        yield fbin.lid, fbin
+    images = bin_images(files.lid, files.adc_path.read_bytes(), files.roi_path.read_bytes())
+    # ifcbkit hands back mode-"L" images; the models expect three channels.
+    for target_num in sorted(images):
+        img = images[target_num]
+        yield target_num, img if img.mode == "RGB" else img.convert("RGB")
+
+
+def iter_directory_bins(dir_path: str | Path) -> Iterator[tuple[str, BinFiles]]:
+    """Yield (bin_lid, BinFiles) for each complete fileset under a directory."""
+    from ifcbkit import SyncIfcbDataDirectory
+
+    dd = SyncIfcbDataDirectory(str(dir_path))
+    for entry in dd.list():
+        lid = entry["pid"]
+        yield lid, BinFiles(lid=lid, adc_path=Path(entry["adc"]), roi_path=Path(entry["roi"]))
 
 
 def get_bin_lid(bin_path: str | Path) -> str:

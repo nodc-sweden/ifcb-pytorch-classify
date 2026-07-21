@@ -3,7 +3,7 @@
 [![Test](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/test.yml/badge.svg)](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/test.yml)
 [![Lint](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/lint.yml/badge.svg)](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/lint.yml)
 [![codecov](https://codecov.io/gh/nodc-sweden/ifcb-pytorch-classify/graph/badge.svg)](https://codecov.io/gh/nodc-sweden/ifcb-pytorch-classify)
-[![Python 3.11–3.12](https://img.shields.io/badge/python-3.11%E2%80%933.12-blue)](https://www.python.org/downloads/)
+[![Python 3.11–3.14](https://img.shields.io/badge/python-3.11%E2%80%933.14-blue)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Docs](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/docs.yml/badge.svg)](https://nodc-sweden.github.io/ifcb-pytorch-classify/)
@@ -15,14 +15,14 @@ Pipeline for training and running inference on IFCB (Imaging FlowCytobot) plankt
 ## Capabilities
 
 - **Training** — Fine-tune 40+ pretrained architectures (ResNet, EfficientNet, ConvNeXt, Vision Transformers, etc.) on class-folder organised image datasets, with optional evaluation plots (static PNG + interactive HTML)
-- **Inference** — Batch-classify raw IFCB bins (`.roi/.adc/.hdr`) via [pyifcb](https://github.com/joefutrelle/pyifcb) into HDF5 files in IFCB Dashboard class_scores v3 format, with per-class decision thresholds; output works with the IFCB Dashboard, [iRfcb](https://europeanifcbgroup.github.io/iRfcb/) and [ClassiPyR](https://europeanifcbgroup.github.io/ClassiPyR/)
+- **Inference** — Batch-classify raw IFCB bins (`.roi/.adc/.hdr`) via [ifcbkit](https://github.com/WHOIGit/ifcbkit) into HDF5 files in IFCB Dashboard class_scores v3 format, with per-class decision thresholds; output works with the IFCB Dashboard, [iRfcb](https://europeanifcbgroup.github.io/iRfcb/) and [ClassiPyR](https://europeanifcbgroup.github.io/ClassiPyR/)
 - **Chain / cell counting** — Optionally train per-taxon [YOLO](https://docs.ultralytics.com/) detectors that count individual cells in colony ROIs and store the count alongside each classification
 - **Experiment tracking** — CSV (default), MLflow, or Weights & Biases
 - **Built for pipelines** — Date-placeholder paths for date-organised continuous inference, and automatic device selection (GPU for training, CPU by default for inference)
 
 ## Quick start
 
-Requires Python 3.11–3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+Requires Python 3.11–3.14 and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
 uv venv
