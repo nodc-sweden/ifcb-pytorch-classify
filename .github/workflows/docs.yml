@@ -13,9 +13,11 @@ permissions:
   pages: write
   id-token: write
 
-# Allow one concurrent deployment, cancelling in-progress runs.
+# Keyed by ref: a constant group here would make concurrent PRs cancel each
+# other's docs build. Serialising the actual Pages deployment is the deploy
+# job's concern, not the whole workflow's.
 concurrency:
-  group: pages
+  group: docs-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -59,6 +61,10 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    # Allow one concurrent deployment; never cancel one mid-publish.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
