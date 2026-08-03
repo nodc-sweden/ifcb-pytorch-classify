@@ -6,7 +6,6 @@
 [![Python 3.11–3.14](https://img.shields.io/badge/python-3.11%E2%80%933.14-blue)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Docs](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/docs.yml/badge.svg)](https://nodc-sweden.github.io/ifcb-pytorch-classify/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21775252.svg)](https://doi.org/10.5281/zenodo.21775252)
 
 Pipeline for training and running inference on IFCB (Imaging FlowCytobot) plankton images using PyTorch.
