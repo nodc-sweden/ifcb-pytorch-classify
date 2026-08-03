@@ -12,7 +12,7 @@ import numpy as np
 
 matplotlib.use("Agg")
 
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +247,7 @@ def _plot_top_confused_pairs(
     labels = []
     rates = []
     annotations = []
-    for r, c in zip(rows, cols):
+    for r, c in zip(rows, cols, strict=True):
         rate = cm_rate[r, c]
         if rate == 0:
             break
@@ -260,9 +260,9 @@ def _plot_top_confused_pairs(
     if not labels:
         return []
 
-    labels = list(reversed(labels))
-    rates = list(reversed(rates))
-    annotations = list(reversed(annotations))
+    labels.reverse()
+    rates.reverse()
+    annotations.reverse()
 
     fig_height = max(4, len(labels) * 0.3)
     fig, ax = plt.subplots(figsize=(9, fig_height))
@@ -274,7 +274,7 @@ def _plot_top_confused_pairs(
     ax.set_title(f"Top {len(labels)} Most Confused Class Pairs (true \u2192 predicted)")
 
     # Annotate bars with raw count/support
-    for bar, annotation in zip(bars, annotations):
+    for bar, annotation in zip(bars, annotations, strict=True):
         ax.text(
             bar.get_width() + 0.3,
             bar.get_y() + bar.get_height() / 2,
@@ -344,7 +344,7 @@ def _plot_interactive_confusion_matrix(
             hovertext=hover_text,
             hoverinfo="text",
             colorscale="Blues",
-            colorbar=dict(title="%"),
+            colorbar={"title": "%"},
             visible=True,
         )
     )
@@ -356,7 +356,7 @@ def _plot_interactive_confusion_matrix(
             hovertext=hover_text,
             hoverinfo="text",
             colorscale="Blues",
-            colorbar=dict(title="Count"),
+            colorbar={"title": "Count"},
             visible=False,
         )
     )
@@ -367,30 +367,30 @@ def _plot_interactive_confusion_matrix(
         width=size,
         height=size,
         updatemenus=[
-            dict(
-                type="buttons",
-                direction="left",
-                x=0.0,
-                y=1.12,
-                buttons=[
-                    dict(
-                        label="Normalized (%)",
-                        method="update",
-                        args=[
+            {
+                "type": "buttons",
+                "direction": "left",
+                "x": 0.0,
+                "y": 1.12,
+                "buttons": [
+                    {
+                        "label": "Normalized (%)",
+                        "method": "update",
+                        "args": [
                             {"visible": [True, False]},
                             {"title": "Confusion Matrix (row-normalized % — hover for class names)"},
                         ],
-                    ),
-                    dict(
-                        label="Raw counts",
-                        method="update",
-                        args=[
+                    },
+                    {
+                        "label": "Raw counts",
+                        "method": "update",
+                        "args": [
                             {"visible": [False, True]},
                             {"title": "Confusion Matrix (raw counts — hover for class names)"},
                         ],
-                    ),
+                    },
                 ],
-            )
+            }
         ],
     )
 
@@ -414,17 +414,17 @@ def _plot_interactive_metrics_table(plots_dir: Path, class_metrics: dict) -> lis
     fig = go.Figure(
         data=[
             go.Table(
-                header=dict(
-                    values=["Class", "F1", "Precision", "Recall", "Support", "Threshold"],
-                    fill_color="steelblue",
-                    font=dict(color="white", size=12),
-                    align="left",
-                ),
-                cells=dict(
-                    values=[names, f1s, precisions, recalls, supports, thresholds],
-                    fill_color="lavender",
-                    align="left",
-                ),
+                header={
+                    "values": ["Class", "F1", "Precision", "Recall", "Support", "Threshold"],
+                    "fill_color": "steelblue",
+                    "font": {"color": "white", "size": 12},
+                    "align": "left",
+                },
+                cells={
+                    "values": [names, f1s, precisions, recalls, supports, thresholds],
+                    "fill_color": "lavender",
+                    "align": "left",
+                },
             )
         ]
     )

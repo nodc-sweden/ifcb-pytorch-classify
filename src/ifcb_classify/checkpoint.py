@@ -108,12 +108,12 @@ def load_checkpoint(
     path = Path(path)
     try:
         data = torch.load(path, map_location="cpu", weights_only=True)
-    except Exception:
+    except Exception as err:
         if not allow_unsafe:
             raise RuntimeError(
                 f"Safe load failed for {path}. If you trust this checkpoint, "
                 "re-run with --allow-unsafe."
-            )
+            ) from err
         logger.warning(
             "Safe load failed for %s — falling back to unsafe load. "
             "Only load checkpoints from trusted sources.",
@@ -150,10 +150,7 @@ def _load_class_names(checkpoint_path: Path, classes_path: str | None) -> list[s
     Raises :class:`FileNotFoundError` with a hint if no class list can be found,
     since a legacy checkpoint is unusable without one.
     """
-    if classes_path:
-        p = Path(classes_path)
-    else:
-        p = checkpoint_path.parent / "classes.txt"
+    p = Path(classes_path) if classes_path else checkpoint_path.parent / "classes.txt"
 
     if not p.exists():
         raise FileNotFoundError(

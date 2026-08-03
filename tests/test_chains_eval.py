@@ -9,7 +9,6 @@ from PIL import Image
 from ifcb_classify.chains.config import ChainEvalConfig
 from ifcb_classify.chains.eval import compute_count_metrics, evaluate_counts, load_counts_csv
 
-
 # --- metrics ----------------------------------------------------------------
 
 def test_compute_count_metrics_perfect():
@@ -69,9 +68,9 @@ def test_load_counts_csv_non_integer_count_reports_line(tmp_path):
 def test_eval_config_requires_fields():
     with pytest.raises(ValueError, match="weights is required"):
         ChainEvalConfig(images="x", counts_csv="y")
-    with pytest.raises(ValueError, match="images .* is required"):
+    with pytest.raises(ValueError, match=r"images .* is required"):
         ChainEvalConfig(weights="w", counts_csv="y")
-    with pytest.raises(ValueError, match="counts_csv .* is required"):
+    with pytest.raises(ValueError, match=r"counts_csv .* is required"):
         ChainEvalConfig(weights="w", images="x")
 
 

@@ -35,7 +35,7 @@ def compute_count_metrics(manual: np.ndarray, predicted: np.ndarray) -> dict:
 
     err = predicted - manual
     return {
-        "n": int(len(manual)),
+        "n": len(manual),
         "mae": float(np.abs(err).mean()),
         "mean_bias": float(err.mean()),
         "exact_acc": float((err == 0).mean()),

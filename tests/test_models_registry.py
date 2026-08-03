@@ -1,5 +1,7 @@
-from ifcb_classify.models.registry import MODELS
+import pytest
+
 from ifcb_classify.models.factory import get_model
+from ifcb_classify.models.registry import MODELS
 
 
 def test_all_models_registered():
@@ -12,11 +14,8 @@ def test_get_model_resnet50():
 
 
 def test_get_model_unknown_raises():
-    try:
+    with pytest.raises(ValueError, match="Unknown model: nonexistent_model"):
         get_model("nonexistent_model", num_classes=6)
-        assert False, "Should have raised ValueError"
-    except ValueError:
-        pass
 
 
 def test_custom_model():

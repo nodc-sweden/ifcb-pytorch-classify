@@ -103,8 +103,7 @@ def save_thresholds_and_metrics(
 
     classes_path = output_path / f"{run_name}_classes.txt"
     with open(classes_path, "w") as f:
-        for name in class_names:
-            f.write(f"{name}\n")
+        f.writelines(f"{name}\n" for name in class_names)
     logger.info("Saved class list: %s", classes_path.name)
 
     return json_path

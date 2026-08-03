@@ -10,8 +10,8 @@ The same :func:`load_config` is reused for the chain-counting configs, which is
 why it takes the dataclass type as an argument rather than hard-coding one.
 """
 
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -19,7 +19,7 @@ import yaml
 
 def _expand_date_placeholders(value: str) -> str:
     """Expand date placeholders like {year}, {month}, {day}, {date} in path strings."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     replacements = {
         "year": now.strftime("%Y"),
         "month": now.strftime("%m"),

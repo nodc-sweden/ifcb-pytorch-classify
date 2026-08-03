@@ -27,10 +27,10 @@ from ifcb_classify.data.datasets import create_training_datasets
 from ifcb_classify.device import get_device
 from ifcb_classify.metrics import MetricsCalculator
 from ifcb_classify.models.factory import get_model
+from ifcb_classify.plots import generate_evaluation_plots
 from ifcb_classify.seed import set_seed
 from ifcb_classify.sweep import generate_sweep_runs
 from ifcb_classify.thresholds import compute_optimal_thresholds, save_thresholds_and_metrics
-from ifcb_classify.plots import generate_evaluation_plots
 from ifcb_classify.tracking import create_tracker
 
 logger = logging.getLogger(__name__)

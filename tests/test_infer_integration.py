@@ -7,9 +7,15 @@ import torch
 from PIL import Image
 
 from ifcb_classify import infer as infer_mod
-from ifcb_classify.config import TrainConfig, InferConfig
+from ifcb_classify.config import InferConfig, TrainConfig
 from ifcb_classify.data.ifcb_bin import BinFiles
-from ifcb_classify.infer import _batch_predict, _classify_directory, _derive_classifier_name, _has_pending_bins, _load_thresholds
+from ifcb_classify.infer import (
+    _batch_predict,
+    _classify_directory,
+    _derive_classifier_name,
+    _has_pending_bins,
+    _load_thresholds,
+)
 from ifcb_classify.train import train_main
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -250,7 +256,7 @@ def test_train_then_infer(tmp_path):
     )
     train_main(train_config)
 
-    checkpoint = list(model_dir.glob("*.pt"))[0]
+    checkpoint = next(iter(model_dir.glob("*.pt")))
 
     from ifcb_classify.infer import infer_main
 

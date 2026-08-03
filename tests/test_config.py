@@ -1,9 +1,9 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 import yaml
 
-from ifcb_classify.config import TrainConfig, InferConfig, load_config
+from ifcb_classify.config import InferConfig, TrainConfig, load_config
 
 
 def test_load_train_config(tmp_path):
@@ -64,7 +64,7 @@ def test_date_placeholder_expansion(tmp_path):
     yaml_path.write_text(yaml.dump(cfg))
 
     config = load_config(yaml_path, InferConfig)
-    year = datetime.now(timezone.utc).strftime("%Y")
+    year = datetime.now(UTC).strftime("%Y")
     assert config.input_path == f"/ifcb/data/{year}"
     assert config.output_dir == f"/ifcb/output/{year}"
 
@@ -75,7 +75,7 @@ def test_date_placeholder_month_day(tmp_path):
     yaml_path.write_text(yaml.dump(cfg))
 
     config = load_config(yaml_path, TrainConfig)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     assert config.data_dir == f"/data/{now:%Y}/{now:%m}/{now:%d}"
 
 

@@ -1,7 +1,6 @@
 import shutil
 from pathlib import Path
 
-
 from ifcb_classify.data.datasets import create_training_datasets, filter_classes
 
 FIXTURES = Path(__file__).parent / "fixtures" / "training_data"
@@ -38,7 +37,7 @@ def test_filter_classes_min_images(tmp_path):
     shutil.copytree(FIXTURES, data_dir)
 
     # Mesodinium_major has 14 images, Strombidium-like has 16
-    filtered_dir, filtered = filter_classes(str(data_dir), min_images=15)
+    _filtered_dir, filtered = filter_classes(str(data_dir), min_images=15)
     assert "Strombidium-like" in filtered
     assert "Mesodinium_major" not in filtered
 
@@ -47,7 +46,7 @@ def test_filter_classes_manual_include(tmp_path):
     data_dir = tmp_path / "training_data"
     shutil.copytree(FIXTURES, data_dir)
 
-    filtered_dir, filtered = filter_classes(
+    _filtered_dir, filtered = filter_classes(
         str(data_dir), min_images=100, manual_include=["Mesodinium_major"],
     )
     assert "Mesodinium_major" in filtered

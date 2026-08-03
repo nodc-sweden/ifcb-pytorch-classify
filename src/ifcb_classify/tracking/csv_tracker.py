@@ -43,4 +43,3 @@ class CsvTracker:
 
     def end_run(self) -> None:
         """No-op: the CSV is already flushed after every ``log_metrics`` call."""
-        pass

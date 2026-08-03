@@ -8,7 +8,6 @@ import pytest
 from ifcb_classify.chains.config import ChainCountingConfig, ChainModelSpec
 from ifcb_classify.chains.counter import ChainCounter
 
-
 # --- config parsing/validation ---------------------------------------------
 
 def test_from_dict_basic():
@@ -170,4 +169,5 @@ def test_compute_chain_counts_disabled():
 
     scores = np.array([[0.9, 0.1]])
     counts, meta = _compute_chain_counts(scores, ["A", "B"], np.array([np.nan, np.nan]), None, None)
-    assert counts is None and meta is None
+    assert counts is None
+    assert meta is None

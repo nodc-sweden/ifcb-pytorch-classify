@@ -47,12 +47,14 @@ def main() -> None:
     total_boxes = 0
     for i in range(0, len(files), 64):
         batch = [str(f) for f in files[i : i + 64]]
-        for path, result in zip(files[i : i + 64], model(batch, iou=args.iou, conf=args.conf, verbose=False)):
+        for path, result in zip(
+            files[i : i + 64], model(batch, iou=args.iou, conf=args.conf, verbose=False), strict=True
+        ):
             h, w = result.orig_shape
             xyxyn = result.boxes.xyxyn.cpu().numpy()
             confs = result.boxes.conf.cpu().numpy()
             results = []
-            for (x1, y1, x2, y2), c in zip(xyxyn, confs):
+            for (x1, y1, x2, y2), c in zip(xyxyn, confs, strict=True):
                 results.append({
                     "type": "rectanglelabels",
                     "from_name": args.from_name,

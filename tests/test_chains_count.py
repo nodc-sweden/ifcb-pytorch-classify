@@ -8,7 +8,6 @@ import pytest
 from ifcb_classify.chains import count as count_mod
 from ifcb_classify.hdf5_output import write_class_scores
 
-
 # --- helpers ----------------------------------------------------------------
 
 class _StubCounter:

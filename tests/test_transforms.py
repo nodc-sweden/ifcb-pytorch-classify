@@ -1,6 +1,6 @@
 import torch
 
-from ifcb_classify.data.transforms import SquarePad, FullPad, ReflectPad
+from ifcb_classify.data.transforms import FullPad, ReflectPad, SquarePad
 
 
 def test_squarepad_makes_square():

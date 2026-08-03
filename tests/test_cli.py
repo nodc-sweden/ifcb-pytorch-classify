@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 from PIL import Image
 
 from ifcb_classify.cli import build_parser, run_cli

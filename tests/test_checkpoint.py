@@ -2,7 +2,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from ifcb_classify.checkpoint import CheckpointManager, load_checkpoint, _guess_model_name, _load_class_names
+from ifcb_classify.checkpoint import CheckpointManager, _guess_model_name, _load_class_names, load_checkpoint
 
 
 class TinyModel(nn.Module):

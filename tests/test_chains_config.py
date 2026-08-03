@@ -17,12 +17,12 @@ def test_class_name_required():
 
 
 def test_data_required():
-    with pytest.raises(ValueError, match="data .* is required"):
+    with pytest.raises(ValueError, match=r"data .* is required"):
         ChainTrainConfig(class_name="Skeletonema")
 
 
 @pytest.mark.parametrize(
-    "field,value,msg",
+    ("field", "value", "msg"),
     [
         ("epochs", 0, "epochs must be >= 1"),
         ("imgsz", 0, "imgsz must be >= 1"),
