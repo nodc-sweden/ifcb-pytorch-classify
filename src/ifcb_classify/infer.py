@@ -7,8 +7,10 @@ a trained checkpoint and an input path (a single bin or a directory of bins) it:
 2. loads the model and rebuilds the exact transform used at training time;
 3. resolves per-class decision thresholds and, optionally, a chain counter;
 4. runs batched softmax inference over each bin's ROIs; and
-5. writes one ``{sample}_class.h5`` per bin in IFCB Dashboard class_scores v3
-   format (see :mod:`ifcb_classify.hdf5_output`).
+5. writes one class-scores file per bin in each requested output format —
+   ``h5`` (IFCB Dashboard class_scores v3, the default; see
+   :mod:`ifcb_classify.hdf5_output`), ``csv`` (:mod:`ifcb_classify.csv_output`)
+   and/or ``mat`` (:mod:`ifcb_classify.mat_output`).
 
 The private ``_classify_*`` / ``_batch_predict`` / ``_write_output`` helpers carry
 a long positional argument list; this is deliberate to keep a single linear data
@@ -50,7 +52,8 @@ def infer_main(config: InferConfig) -> None:
     output_dir = Path(config.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if not config.overwrite and not _has_pending_bins(input_path, output_dir):
+    formats_early = config.resolved_formats()
+    if not config.overwrite and not _has_pending_bins(input_path, output_dir, formats_early):
         logger.info("No new bins to classify — skipping model load")
         return
 
@@ -84,11 +87,15 @@ def infer_main(config: InferConfig) -> None:
     thresholds = _load_thresholds(config, class_names)
     classifier_name = config.classifier_name or _derive_classifier_name(config, train_config)
     counter = _build_chain_counter(config)
+    formats = config.resolved_formats()
+    logger.info("Writing output format(s): %s", ", ".join(formats))
+    if counter is not None and not ({"h5", "mat", "csv-labels"} & set(formats)):
+        logger.warning("Chain counting is enabled but none of 'h5', 'mat', 'csv-labels' is an output format; cell counts are only stored in those formats, so no counts will be written.")
 
     if input_path.is_file():
-        _classify_bin_file(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, counter)
+        _classify_bin_file(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, formats, counter)
     elif input_path.is_dir():
-        _classify_directory(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, counter)
+        _classify_directory(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, formats, counter)
     else:
         raise FileNotFoundError(f"Input path not found: {input_path}")
 
@@ -112,52 +119,59 @@ def _build_chain_counter(config: InferConfig):
     return counter
 
 
-def _has_pending_bins(input_path: Path, output_dir: Path) -> bool:
-    """Check whether there are any bins without corresponding output files.
+def _has_pending_bins(input_path: Path, output_dir: Path, formats: tuple[str, ...]) -> bool:
+    """Check whether any bin is missing at least one requested output file.
 
-    For directories, builds a set of already-classified LIDs from the local
-    output directory (fast), then scans the input for .roi files that are
-    not in that set. Uses rglob to find bins in subdirectories.
+    A bin is "done" only when every requested format's file already exists, so a
+    bin classified to h5 but not yet to a newly added csv/mat format still counts
+    as pending. For directories, uses rglob to find bins in subdirectories.
     """
     if input_path.is_file():
         lid = get_bin_lid(input_path)
-        return not _output_path_for_lid(output_dir, lid).exists()
+        return not _bin_outputs_complete(output_dir, lid, formats)
 
     if input_path.is_dir():
-        classified_lids = {
-            p.name.removesuffix("_class.h5")
-            for p in output_dir.glob("*_class.h5")
-        }
         # Sort reverse so newest samples (by name, which encodes timestamp) are checked first
         roi_files = sorted(input_path.rglob("*.roi"), reverse=True)
         for roi_file in roi_files:
             lid = get_bin_lid(roi_file)
-            if lid not in classified_lids:
+            if not _bin_outputs_complete(output_dir, lid, formats):
                 return True
         return False
 
     return True
 
 
-def _output_path_for_lid(output_dir: Path, lid: str) -> Path:
-    """Return the output ``{lid}_class.h5`` path for a bin LID."""
-    return output_dir / f"{lid}_class.h5"
+# Per-format output-file suffixes. ``mat`` uses the ``_v1`` name pyifcb's v1
+# reader (and thus the dashboard) resolves for MATLAB class-scores files.
+# ``csv-labels`` uses a bare ``{lid}.csv`` because iRfcb resolves a csv's sample
+# name by stripping only ``.csv`` — a ``_class`` suffix would misname the sample.
+_FORMAT_SUFFIX = {"h5": "_class.h5", "csv": "_class.csv", "mat": "_class_v1.mat", "csv-labels": ".csv"}
+
+
+def _output_path_for_lid(output_dir: Path, lid: str, fmt: str = "h5") -> Path:
+    """Return the output path for a bin LID in the given format."""
+    return output_dir / f"{lid}{_FORMAT_SUFFIX[fmt]}"
+
+
+def _bin_outputs_complete(output_dir: Path, lid: str, formats: tuple[str, ...]) -> bool:
+    """True when every requested format's output file already exists for ``lid``."""
+    return all(_output_path_for_lid(output_dir, lid, fmt).exists() for fmt in formats)
 
 
 def _classify_bin_file(
-    bin_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, counter=None
+    bin_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, formats, counter=None
 ):
-    """Classify a single bin file and write its HDF5 output.
+    """Classify a single bin file and write its class-scores output(s).
 
-    Skips silently if the output already exists and ``overwrite`` is false. When
-    ``counter`` is provided, the untransformed PIL images are also collected so
-    the chain counter can run on them.
+    Skips silently if every requested format already exists and ``overwrite`` is
+    false. When ``counter`` is provided, the untransformed PIL images are also
+    collected so the chain counter can run on them.
     """
     lid = get_bin_lid(bin_path)
-    out_path = _output_path_for_lid(output_dir, lid)
 
-    if out_path.exists() and not overwrite:
-        logger.info("Skipping (already exists): %s", out_path.name)
+    if not overwrite and _bin_outputs_complete(output_dir, lid, formats):
+        logger.info("Skipping (already exists): %s", lid)
         return
 
     logger.info("Classifying bin: %s", lid)
@@ -180,11 +194,11 @@ def _classify_bin_file(
         return
 
     scores = _batch_predict(model, images, device, batch_size)
-    _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, counter, raw_images)
+    _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter, raw_images)
 
 
 def _classify_directory(
-    dir_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, counter=None
+    dir_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, formats, counter=None
 ):
     """Classify every bin in a directory, skipping ones already classified.
 
@@ -192,10 +206,8 @@ def _classify_directory(
     before moving on — important when scanning large directories of bins.
     """
     for lid, fbin in iter_directory_bins(dir_path):
-        out_path = _output_path_for_lid(output_dir, lid)
-
-        if out_path.exists() and not overwrite:
-            logger.info("Skipping (already exists): %s", out_path.name)
+        if not overwrite and _bin_outputs_complete(output_dir, lid, formats):
+            logger.info("Skipping (already exists): %s", lid)
             continue
 
         logger.info("Classifying bin: %s", lid)
@@ -217,7 +229,7 @@ def _classify_directory(
             continue
 
         scores = _batch_predict(model, images, device, batch_size)
-        _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, counter, raw_images)
+        _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter, raw_images)
 
 
 def _batch_predict(model, images, device, batch_size):
@@ -236,24 +248,88 @@ def _batch_predict(model, images, device, batch_size):
     return np.concatenate(all_scores, axis=0)
 
 
-def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, counter=None, raw_images=None):
-    """Compute optional chain counts and write the HDF5 class-scores file for a bin."""
+def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter=None, raw_images=None):
+    """Write the requested class-scores file(s) for a bin.
+
+    ``formats`` is any subset of ``("h5", "csv", "mat", "csv-labels")``. A bin is
+    reclassified whenever *any* requested format is missing, but each format is
+    only written if its own file is absent (or ``overwrite`` is set) — so adding a
+    new format to already-processed bins leaves the existing files (e.g. an ``h5``
+    carrying chain counts) untouched. ``h5``, ``mat`` and ``csv-labels`` store
+    chain counts and resolved/thresholded classes (``mat``/``csv-labels`` are the
+    iRfcb/ClassiPyR layouts); ``csv`` stays scores-only to match the dashboard's
+    export.
+    """
     roi_numbers = np.array(target_numbers, dtype=np.int32)
-    cell_counts, models_meta = _compute_chain_counts(scores, class_names, thresholds, counter, raw_images)
-    output_path = _output_path_for_lid(output_dir, lid)
-    write_class_scores(
-        output_path, scores, class_names, roi_numbers, classifier_name, thresholds,
-        cell_counts=cell_counts, cell_counter_models=models_meta,
-    )
+
+    def _target(fmt):
+        """Return the output path for ``fmt`` if it should be (re)written, else None."""
+        path = _output_path_for_lid(output_dir, lid, fmt)
+        return path if (overwrite or not path.exists()) else None
+
+    h5_path = _target("h5") if "h5" in formats else None
+    csv_path = _target("csv") if "csv" in formats else None
+    mat_path = _target("mat") if "mat" in formats else None
+    labels_path = _target("csv-labels") if "csv-labels" in formats else None
+
+    # Chain counts are stored by the h5, mat and csv-labels outputs; compute them
+    # once if any of those will actually be written.
+    cell_counts, models_meta = None, None
+    if h5_path is not None or mat_path is not None or labels_path is not None:
+        cell_counts, models_meta = _compute_chain_counts(scores, class_names, thresholds, counter, raw_images)
+
+    # The mat and csv-labels outputs both need the resolved/thresholded classes.
+    class_name_auto, class_name = None, None
+    if mat_path is not None or labels_path is not None:
+        class_name_auto, class_name = resolve_class_names(scores, class_names, thresholds)
+
+    written = []
+
+    if h5_path is not None:
+        write_class_scores(
+            h5_path, scores, class_names, roi_numbers, classifier_name, thresholds,
+            cell_counts=cell_counts, cell_counter_models=models_meta,
+        )
+        written.append(h5_path)
+
+    if csv_path is not None:
+        from ifcb_classify.csv_output import write_class_scores_csv
+
+        write_class_scores_csv(csv_path, scores, class_names, roi_numbers, lid)
+        written.append(csv_path)
+
+    if mat_path is not None:
+        from ifcb_classify.mat_output import write_class_scores_mat
+
+        write_class_scores_mat(
+            mat_path, scores, class_names, roi_numbers, class_name_auto, class_name,
+            classifier_name, cell_counts=cell_counts,
+        )
+        written.append(mat_path)
+
+    if labels_path is not None:
+        from ifcb_classify.csv_labels_output import write_class_labels_csv
+
+        write_class_labels_csv(
+            labels_path, scores, roi_numbers, class_name_auto, class_name, lid,
+            cell_counts=cell_counts,
+        )
+        written.append(labels_path)
+
+    if not written:
+        logger.info("Nothing to write for %s (all requested formats exist)", lid)
+        return
+
+    names = ", ".join(p.name for p in written)
     if cell_counts is not None:
         n_counted = int((cell_counts >= 0).sum())
         total_cells = int(cell_counts[cell_counts >= 0].sum())
         logger.info(
             "Wrote: %s (%d ROIs, %d chain-counted, %d cells)",
-            output_path.name, len(target_numbers), n_counted, total_cells,
+            names, len(target_numbers), n_counted, total_cells,
         )
     else:
-        logger.info("Wrote: %s (%d ROIs)", output_path.name, len(target_numbers))
+        logger.info("Wrote: %s (%d ROIs)", names, len(target_numbers))
 
 
 def _compute_chain_counts(scores, class_names, thresholds, counter, raw_images):

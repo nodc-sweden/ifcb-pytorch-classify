@@ -43,25 +43,34 @@ def test_load_thresholds_default():
 
 
 def test_has_pending_bins_single_file(tmp_path):
-    assert _has_pending_bins(BIN_PATH, tmp_path) is True
+    assert _has_pending_bins(BIN_PATH, tmp_path, ("h5",)) is True
 
     # Create the output file to simulate already-classified
     (tmp_path / "D20220519T124533_IFCB134_class.h5").touch()
-    assert _has_pending_bins(BIN_PATH, tmp_path) is False
+    assert _has_pending_bins(BIN_PATH, tmp_path, ("h5",)) is False
 
 
 def test_has_pending_bins_directory(tmp_path):
     bins_dir = FIXTURES / "bins"
-    assert _has_pending_bins(bins_dir, tmp_path) is True
+    assert _has_pending_bins(bins_dir, tmp_path, ("h5",)) is True
 
     (tmp_path / "D20220519T124533_IFCB134_class.h5").touch()
-    assert _has_pending_bins(bins_dir, tmp_path) is False
+    assert _has_pending_bins(bins_dir, tmp_path, ("h5",)) is False
 
 
 def test_has_pending_bins_empty_directory(tmp_path):
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()
-    assert _has_pending_bins(empty_dir, tmp_path) is False
+    assert _has_pending_bins(empty_dir, tmp_path, ("h5",)) is False
+
+
+def test_has_pending_bins_multiformat(tmp_path):
+    # A bin already written to h5 is still pending when csv is also requested.
+    (tmp_path / "D20220519T124533_IFCB134_class.h5").touch()
+    assert _has_pending_bins(BIN_PATH, tmp_path, ("h5", "csv")) is True
+
+    (tmp_path / "D20220519T124533_IFCB134_class.csv").touch()
+    assert _has_pending_bins(BIN_PATH, tmp_path, ("h5", "csv")) is False
 
 
 # --- _classify_directory (with stubbed bin I/O) -----------------------------
@@ -101,7 +110,7 @@ def test_classify_directory_writes_outputs(tmp_path, monkeypatch):
 
     _classify_directory(
         tmp_path, model, transform, torch.device("cpu"), 8,
-        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, overwrite=False,
+        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, False, ("h5",),
     )
 
     assert (tmp_path / "D1_class.h5").exists()
@@ -109,6 +118,32 @@ def test_classify_directory_writes_outputs(tmp_path, monkeypatch):
     with h5py.File(tmp_path / "D1_class.h5", "r") as f:
         assert f["roi_numbers"][:].tolist() == [0, 1]
         assert "cell_count" not in f
+
+
+def test_classify_directory_all_formats(tmp_path, monkeypatch):
+    _wire_directory(monkeypatch, ["D1"])
+    model, transform = _tiny_model_and_transform()
+
+    _classify_directory(
+        tmp_path, model, transform, torch.device("cpu"), 8,
+        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, False, ("h5", "csv", "mat", "csv-labels"),
+    )
+
+    assert (tmp_path / "D1_class.h5").exists()
+    assert (tmp_path / "D1_class.csv").exists()
+    assert (tmp_path / "D1_class_v1.mat").exists()
+    # csv-labels uses the bare {lid}.csv name (iRfcb convention)
+    assert (tmp_path / "D1.csv").exists()
+
+    import pandas as pd
+
+    df = pd.read_csv(tmp_path / "D1_class.csv")
+    assert list(df.columns) == ["pid", "A", "B"]
+    assert df["pid"].tolist() == ["D1_00000", "D1_00001"]
+
+    labels = pd.read_csv(tmp_path / "D1.csv")
+    assert list(labels.columns) == ["file_name", "class_name", "class_name_auto", "score"]
+    assert labels["file_name"].tolist() == ["D1_00000.png", "D1_00001.png"]
 
 
 def test_classify_directory_skips_existing(tmp_path, monkeypatch):
@@ -121,7 +156,7 @@ def test_classify_directory_skips_existing(tmp_path, monkeypatch):
 
     _classify_directory(
         tmp_path, model, transform, torch.device("cpu"), 8,
-        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, overwrite=False,
+        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, False, ("h5",),
     )
 
     assert existing.stat().st_size == 0
@@ -143,13 +178,60 @@ def test_classify_directory_with_counter(tmp_path, monkeypatch):
 
     _classify_directory(
         tmp_path, model, transform, torch.device("cpu"), 8,
-        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, overwrite=False,
+        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, False, ("h5", "mat"),
         counter=_StubCounter(),
     )
 
     with h5py.File(tmp_path / "D1_class.h5", "r") as f:
         np.testing.assert_array_equal(f["cell_count"][:], [7, 7])
         assert "cell_counter_models" in f.attrs
+
+    # Chain counts also land in the mat (for iRfcb's cell-count summariser)
+    from scipy.io import loadmat
+
+    np.testing.assert_array_equal(loadmat(tmp_path / "D1_class_v1.mat", squeeze_me=True)["cell_count"], [7, 7])
+
+
+def test_adding_format_preserves_existing_output(tmp_path, monkeypatch):
+    """Adding csv to already-h5-classified bins must not rewrite the h5.
+
+    The h5 was written with chain counts; a later csv-adding run without a counter
+    must leave the h5 (and its cell_count) byte-for-byte intact.
+    """
+    model, transform = _tiny_model_and_transform()
+
+    class _StubCounter:
+        def handles(self, class_name):
+            return True
+
+        def count(self, image, class_name):
+            return 3
+
+        def models_metadata(self):
+            return {"A": {"weights": "x.pt", "iou": 0.3, "conf": 0.25}}
+
+    # First pass: h5 only, with counts.
+    _wire_directory(monkeypatch, ["D1"])
+    _classify_directory(
+        tmp_path, model, transform, torch.device("cpu"), 8,
+        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, False, ("h5",),
+        counter=_StubCounter(),
+    )
+    h5_path = tmp_path / "D1_class.h5"
+    original_bytes = h5_path.read_bytes()
+
+    # Second pass: request h5+csv, no counter, no overwrite.
+    _wire_directory(monkeypatch, ["D1"])
+    _classify_directory(
+        tmp_path, model, transform, torch.device("cpu"), 8,
+        ["A", "B"], np.array([np.nan, np.nan]), "clf", tmp_path, False, ("h5", "csv"),
+    )
+
+    # csv created, h5 untouched (counts preserved).
+    assert (tmp_path / "D1_class.csv").exists()
+    assert h5_path.read_bytes() == original_bytes
+    with h5py.File(h5_path, "r") as f:
+        np.testing.assert_array_equal(f["cell_count"][:], [3, 3])
 
 
 @pytest.mark.slow

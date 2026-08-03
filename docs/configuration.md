@@ -16,6 +16,15 @@ available options.
 | `tracker` | `csv` | Experiment tracker (`csv`, `mlflow`, `wandb`, `none`) |
 | `plots` | `false` | Generate evaluation plots after training |
 
+## Key inference parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `output_format` | `h5` | Class-scores file format(s): `h5`, `csv`, `mat`, a comma-separated list (`h5,csv`), or `all` (see [Inference → Output formats](guides/inference.md#output-formats)) |
+| `threshold_default` | `0.0` | Per-class decision threshold when no thresholds file is supplied |
+| `device` | `auto` | Compute device (`auto`, `cpu`, `cuda`) |
+| `overwrite` | `false` | Overwrite existing output files instead of skipping |
+
 ## Date placeholders
 
 Path values in YAML configs support date placeholders that are expanded at load
