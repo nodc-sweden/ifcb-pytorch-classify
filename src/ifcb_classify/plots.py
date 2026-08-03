@@ -72,7 +72,7 @@ def generate_evaluation_plots(
         if class_metrics:
             created.extend(_plot_interactive_metrics_table(plots_dir, class_metrics))
     else:
-        logger.info("Install plotly for interactive plots: pip install 'ifcb-classify[plots]'")
+        logger.info("plotly is not importable, so only the static plots were written; reinstall it with: pip install plotly")
 
     logger.info("Saved %d evaluation plots to %s", len(created), plots_dir)
     return created

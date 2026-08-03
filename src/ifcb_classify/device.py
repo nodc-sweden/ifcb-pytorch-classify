@@ -8,7 +8,8 @@ def get_device(force: str = "auto") -> torch.device:
 
     ``"auto"`` prefers CUDA, then Apple MPS, then CPU. ``"cpu"``/``"cuda"`` force
     that device; any other string is passed straight to ``torch.device``.
-    Training auto-selects (GPU when present); inference defaults to CPU.
+    Training always resolves ``"auto"``; inference uses ``InferConfig.device``,
+    which also defaults to ``"auto"`` but can be overridden per run.
     """
     if force == "cpu":
         return torch.device("cpu")

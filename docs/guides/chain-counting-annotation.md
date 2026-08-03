@@ -17,17 +17,17 @@ and cover the data side. They need the `chains` extra
 
 | Script | Purpose |
 |---|---|
-| [`prepare_ls_yolo.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/prepare_ls_yolo.py) | Turn a Label Studio **YOLO export** into a `chains-train` dataset (pairs labels↔images, splits train/val, writes `data.yaml`). |
-| [`ls_preannotate_api.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/ls_preannotate_api.py) | **Pre-annotate existing Label Studio tasks in place** via the API — runs a trained model and attaches predicted boxes as predictions (no duplicate tasks). |
-| [`yolo_pre_annotate.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/yolo_pre_annotate.py) | Alternative: emit Label Studio **import JSON** with predictions, for images that are *not* yet tasks. |
-| [`compare_bootstrap_models.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/compare_bootstrap_models.py) | Trial every trained detector on a new taxon and rank them, to pick a bootstrap model by **cell morphology** (not taxonomy). |
+| [`prepare_ls_yolo.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/prepare_ls_yolo.py) | Turn a Label Studio YOLO export into a `chains-train` dataset (pairs labels↔images, splits train/val, writes `data.yaml`). |
+| [`ls_preannotate_api.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/ls_preannotate_api.py) | Pre-annotate existing Label Studio tasks in place via the API. Runs a trained model and attaches predicted boxes as predictions (no duplicate tasks). |
+| [`yolo_pre_annotate.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/yolo_pre_annotate.py) | Alternative: emit Label Studio import JSON with predictions, for images that are *not* yet tasks. |
+| [`compare_bootstrap_models.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/compare_bootstrap_models.py) | Trial every trained detector on a new taxon and rank them, to pick a bootstrap model by cell morphology (not taxonomy). |
 
 ## The iterative bootstrap loop
 
-Manual bounding-box annotation is the slow part. Don't draw every box from
-scratch — bootstrap a model and *correct* its boxes, improving each round:
+Manual bounding-box annotation is the slow part. Rather than draw every box from
+scratch, bootstrap a model and *correct* its boxes:
 
-1. **Label a small batch** in Label Studio (~30–80 ROIs).
+1. **Label a small batch** in Label Studio (~30-80 ROIs).
 2. **Export → YOLO**, then build a dataset:
    ```bash
    python scripts/prepare_ls_yolo.py --labels <export>/labels --images <source_images> \
@@ -44,16 +44,16 @@ scratch — bootstrap a model and *correct* its boxes, improving each round:
        --token-file ~/.ls_token --weights <best.pt> --images <source_images> \
        --imgsz 1024 --conf 0.12 --limit 250
    ```
-   Use a **low `--conf`** (0.10–0.15) so faint cells in long chains surface as
-   candidate boxes — deleting extras is faster than drawing missed cells.
+   Use a low `--conf` (0.10-0.15) so faint cells in long chains surface as
+   candidate boxes; deleting extras is faster than drawing missed cells.
    Match `--imgsz` to the training resolution.
 5. **Correct** the pre-annotated tasks, re-export, and retrain. Each round the
    pre-labels improve and you do less drawing.
 
-Skeletonema reached **98% exact count match** (vs manual) this way; a 78-image
-Thalassionema model reached recall **0.99**.
+Skeletonema reached 98% exact count match (vs manual) this way; a 78-image
+Thalassionema model reached recall 0.99.
 
-When approaching a **new** taxon with no detector yet, run
+When approaching a new taxon with no detector yet, run
 `scripts/compare_bootstrap_models.py --src <new_taxon_images> --models-root
 models/chains --out /tmp/trial` first: it ranks your existing detectors on a
 sample so you can pick the one whose cell shape transfers best as a starting
@@ -75,22 +75,22 @@ point (e.g. a rounded-centric detector bootstraps another rounded-centric taxon)
 - **Auth (LS 1.23):** personal access tokens are JWTs. Save the token to
   `~/.ls_token` (chmod 600); `ls_preannotate_api.py` exchanges it via
   `/api/token/refresh` automatically. (Legacy 40-char tokens also work.)
-- **Source images:** with synced storage the export's `images/` is often empty —
-  that's fine, the scripts pair the exported `labels/` to your local images by
+- **Source images:** with synced storage the export's `images/` is often empty.
+  That's fine: the scripts pair the exported `labels/` to your local images by
   filename.
 
 ### Annotation conventions (decide once, apply uniformly)
 
-Consistency matters more than pixel-perfection — the model learns the
+Consistency matters more than pixel-perfection: the model learns the
 distribution of your boxes.
 
 - **One box per cell**, including cells that touch/overlap in a chain. Overlap is
   expected (NMS IoU is tuned for it via `chains-eval`).
-- **Box partially-occluded cells** too (estimate their extent) — skipping them
+- **Box partially-occluded cells** too (estimate their extent); skipping them
   undercounts.
-- Box the **cell body only**, excluding connecting threads / setae.
-- Pick a rule for **cells cut off at the ROI border** (e.g. box if ≳50% visible)
-  and for **faint/blurry** cells, and stick to it.
+- Box the cell body only, not the connecting threads or setae.
+- Pick a rule for cells cut off at the ROI border (e.g. box if ≳50% visible) and
+  for faint or blurry cells, and stick to it.
 - Never box debris, detritus, or other taxa.
 
 ## Validating counts (`chains-eval`)
@@ -106,14 +106,23 @@ ifcb-classify chains-eval --weights <best.pt> \
 ```
 
 You don't need to re-count by hand: the ground-truth count for an annotated
-image **is** the number of boxes in its label file, so the CSV can be generated
-straight from the YOLO labels — e.g. each row is `<image>, $(wc -l < labels/<image>.txt)`.
+image is the number of boxes in its label file, so the CSV can be generated
+straight from the YOLO labels. It needs a `file_name,cell_count` header, and the
+filename must include its extension:
+
+```bash
+{ printf 'file_name,cell_count\n'
+  for f in labels/*.txt; do
+      printf '%s.png,%s\n' "$(basename "$f" .txt)" "$(wc -l < "$f")"
+  done
+} > counts.csv
+```
 
 ## Resolution (`--imgsz`): match it to the ROI sizes
 
-`chains-train` defaults to **640**. Whether to go higher depends on how large
-the ROIs are — long chains are physically wider, so they live in the large-ROI
-tail that 640 downsamples (smearing thin cells together). Check the distribution:
+`chains-train` defaults to 640. Whether to go higher depends on how large the
+ROIs are. Long chains are physically wider, so they live in the large-ROI tail
+that 640 downsamples, which smears thin cells together. Check the distribution:
 
 ```python
 from PIL import Image; import glob, numpy as np
@@ -122,23 +131,31 @@ for thr in (640, 1024):
     print(thr, f"{100*(longest>thr).mean():.1f}% of ROIs exceed this")
 ```
 
-**Worked example — Thalassionema nitzschioides** (3,818 ROIs, long thin stellate
-chains): longest-side median 384 px, 95th pct 952 px, max 1359 px. **16% of ROIs
-exceed 640 px** (these are the long chains — the hard cases), but only **1.2%
-exceed 1024 px**. So:
+As a worked example, Thalassionema nitzschioides (3,818 ROIs, long thin stellate
+chains) has a longest-side median of 384 px, 95th pct 952 px, and max 1359 px.
+16% of ROIs exceed 640 px (the long chains, which are the hard cases), but only
+1.2% exceed 1024 px. So:
 
 - **640** is fine for short chains (small ROIs) and trains faster.
-- **1024** rescues the long/blurry chains by not downsampling that 16% tail — the
-  right default for this taxon. (`v2` at 1024 reached recall 0.99.)
-- **1280+** isn't worth it here — almost no ROIs exceed 1024.
+- **1024** rescues the long/blurry chains by not downsampling that 16% tail, and
+  is the right default for this taxon. (`v2` at 1024 reached recall 0.99.)
+- **1280+** isn't worth it here: almost no ROIs exceed 1024.
 
-Rule of thumb: set `--imgsz` to roughly the ~95th-percentile longest side, capped
-where the tail flattens. Use `chains-eval` on a manual-count set to confirm.
+Rule of thumb: set `--imgsz` to the 95th-percentile longest side, capped where
+the tail flattens. Use `chains-eval` on a manual-count set to confirm.
+
+!!! warning "`--imgsz` applies to training only"
+
+    `chains-eval` and counting during inference have no resolution setting, so
+    both predict at ultralytics' default of 640 whatever the detector was trained
+    at. A detector trained at 1024 is therefore evaluated and deployed at 640,
+    which gives up much of the benefit on the large-ROI tail. Eval numbers
+    reflect 640, not the training resolution.
 
 ## One detector per genus
 
 A detector is single-class ("cell vs not-cell"), so one genus-level model
-typically serves all species of that genus plus the genus-level class — map
+typically serves all species of that genus plus the genus-level class. Map
 several classifier labels to the same weights in the inference config. Verify per
 species with `chains-eval`; only train a species-specific detector if one species
 shows high count error.
@@ -150,11 +167,12 @@ box with a larger model and high resolution:
 
 ```bash
 ifcb-classify chains-train --class-name <taxon> --data datasets/<taxon> \
-    --model yolo11x.pt --imgsz 1024 --device 0 --batch -1 --epochs 200
+    --model yolo11x.pt --imgsz 1024 --device 0 --batch 8 --epochs 200
 ```
 
-- `--batch -1` lets ultralytics auto-pick the largest safe batch (yolo11x @ 1024
-  is VRAM-heavy; set a smaller `--batch` if you hit OOM).
+- `--batch` must be a positive integer. Ultralytics' AutoBatch (`--batch -1`) is
+  rejected by the config validator, so pick a value by hand and lower it if you
+  hit OOM (yolo11x @ 1024 is VRAM-heavy).
 - `--imgsz 1024` must be passed explicitly (it is **not** the default).
 
 ### Dataset portability

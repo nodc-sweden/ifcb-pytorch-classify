@@ -7,6 +7,7 @@ image_height: 224
 transform: dataset_squarepad_augmented
 
 model: resnet50
+# false trains from scratch; inception_v3_untrained does so either way.
 pretrained: true
 
 lr: 0.0001
@@ -19,7 +20,7 @@ output_dir: output
 checkpoint_metric: weighted_f1
 tracker: csv
 
-# Uncomment to generate evaluation plots after training (install plotly for interactive plots):
+# Uncomment to generate evaluation plots after training (static PNG + interactive HTML):
 # plots: true
 
 # Uncomment to enable MLflow or W&B:

@@ -23,7 +23,7 @@ chain_counting:
   iou: 0.30             # default NMS IoU (per-model override allowed)
   models:
     Skeletonema_marinoi:
-      weights: /models/chains/chains_skeletonema_yolo11n/weights/best.pt
+      weights: /models/chains/chains_Skeletonema_yolo11s/weights/best.pt
       iou: 0.30
     # Example many-to-one mapping for a genus with several species classes:
     # Thalassiosira_nordenskioeldii: { weights: /models/chains/thalassiosira_best.pt }

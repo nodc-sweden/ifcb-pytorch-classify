@@ -4,7 +4,7 @@
 # Run the SAME weights against each species' test set to check whether one
 # genus-level detector generalises across species (compare the metrics).
 
-weights: output/chains/chains_skeletonema_yolo11n/weights/best.pt
+weights: output/chains/chains_Skeletonema_yolo11s/weights/best.pt
 
 # Directory of test images, and a CSV of manual cell counts per image.
 images: /path/to/datasets/skeletonema/images/test

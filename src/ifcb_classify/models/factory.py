@@ -46,13 +46,15 @@ def _assign_part(obj, part: str, value: nn.Module) -> None:
         setattr(obj, part, value)
 
 
-def get_model(name: str, num_classes: int) -> nn.Module:
+def get_model(name: str, num_classes: int, pretrained: bool = True) -> nn.Module:
     """Build the model ``name`` with a ``num_classes``-wide classification head.
 
     Looks ``name`` up in :data:`MODELS` (case-insensitively), instantiates the
-    backbone with its default pretrained weights (unless the spec sets
-    ``weights=None``), and replaces the head. ``name="custom"`` returns the
-    bundled small CNN. Raises ``ValueError`` for an unknown name.
+    backbone with its default pretrained weights, and replaces the head. Pass
+    ``pretrained=False`` to train from scratch instead; a spec that already sets
+    ``weights=None`` (such as ``inception_v3_untrained``) trains from scratch
+    either way. ``name="custom"`` returns the bundled small CNN, which is always
+    from scratch. Raises ``ValueError`` for an unknown name.
     """
     if name == "custom":
         return _build_custom(num_classes)
@@ -61,7 +63,7 @@ def get_model(name: str, num_classes: int) -> nn.Module:
     if spec is None:
         raise ValueError(f"Unknown model: {name}. Available: {sorted(MODELS.keys())}")
 
-    weights_arg = {"weights": spec.weights} if spec.weights else {"weights": None}
+    weights_arg = {"weights": spec.weights if pretrained else None}
     model = spec.constructor(**weights_arg)
 
     head = nn.Linear(in_features=spec.in_features, out_features=num_classes, bias=spec.bias)

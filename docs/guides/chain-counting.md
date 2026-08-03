@@ -1,18 +1,18 @@
 # Chain counting
 
-Many plankton grow as multi-celled colonies in a single ROI — chains (e.g.
+Many plankton grow as multi-celled colonies in a single ROI: chains (e.g.
 *Skeletonema*), but also ribbons, fans, and branched or spherical colonies. For
 these taxa, classification alone tells you *what* the ROI is but not *how many*
 cells it contains. This optional feature trains a small
 [YOLO](https://docs.ultralytics.com/) object detector **per taxon** that counts
-the individual cells in each ROI, and (during inference) stores that **cell
-count** alongside the classification result.
+the individual cells in each ROI, and (during inference) stores that cell count
+alongside the classification result.
 
 !!! note "It counts cells, not chains"
     The feature and its CLI commands keep the "chain" name (`chains-train`,
     `chains-count`, `chains-eval`) for historical reasons, but the value it
-    produces is a per-ROI **cell count** — the number of cells in a colony of
-    *any* form, not a tally of chains. The stored dataset is named `cell_count`
+    produces is a per-ROI cell count: the number of cells in a colony of *any*
+    form, not a tally of chains. The stored dataset is named `cell_count`
     accordingly.
 
 This approach follows Groves et al. (2026), who demonstrated automatic
@@ -32,15 +32,15 @@ uv pip install -e ".[chains]"
 !!! tip "Annotating efficiently"
     Drawing every bounding box by hand is slow. See
     [Chain-counting annotation](chain-counting-annotation.md) for the full
-    workflow — Label Studio setup, annotation conventions, the bootstrap loop
+    workflow: Label Studio setup, annotation conventions, the bootstrap loop
     (pre-annotate with a model, then *correct* its boxes), `--imgsz` guidance,
     and the helper scripts that support it.
 
 ## Training a detector for any chain-forming taxon
 
 Train one detector per taxon you want to count. This works for any chain-forming
-species — bring your own annotated data. Some annotated chain-count images are
-available from
+species, but you have to bring your own annotated data. Some annotated
+chain-count images are available from
 [EuropeanIFCBGroup/IFCBChainCounts](https://github.com/EuropeanIFCBGroup/IFCBChainCounts).
 
 ```bash
@@ -71,8 +71,9 @@ datasets/skeletonema/
   images/val/*.png          labels/val/*.txt
 ```
 
-Each label `.txt` holds one line per cell: `class_id cx cy w h` (normalised
-0–1). With a single taxon per detector, `class_id` is always `0`. A `data.yaml`:
+Each label `.txt` holds one line per cell: `class_id cx cy w h` (normalised to
+the range 0 to 1). With a single taxon per detector, `class_id` is always `0`. A
+`data.yaml`:
 
 ```yaml
 path: /abs/path/to/datasets/skeletonema
@@ -84,15 +85,16 @@ names:
 
 `--data` accepts either a `data.yaml` file or a directory containing one
 (`data.local.yaml` is preferred over `data.yaml` when both exist). A Label Studio
-YOLO export doesn't match this layout directly —
+YOLO export doesn't match this layout directly, but
 [`scripts/prepare_ls_yolo.py`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/scripts/prepare_ls_yolo.py)
 pairs the exported labels to images, splits train/val, and writes the `data.yaml`
 for you.
 
 ### Compute
 
-`yolo11n.pt` (nano) trains in ~hours on CPU and is a good starting point; use a
-larger model (`yolo11x.pt`) on a GPU (`--device 0`) for best accuracy. CUDA
+`chains-train` defaults to `yolo11s.pt` for 100 epochs at `imgsz` 640, batch 16,
+on the CPU. Drop to `yolo11n.pt` (nano) if CPU training is too slow or VRAM is
+tight, or step up to `yolo11x.pt` on a GPU (`--device 0`) for best accuracy. CUDA
 requires a CUDA build of PyTorch (see [Installation](../installation.md)).
 
 See `configs/chains_train_default.yaml` for all options.
@@ -110,7 +112,7 @@ chain_counting:
   iou: 0.30             # default; per-model override allowed
   models:
     Skeletonema_marinoi:
-      weights: /models/chains/chains_skeletonema_yolo11n/weights/best.pt
+      weights: /models/chains/chains_Skeletonema_yolo11s/weights/best.pt
       iou: 0.30
     # Several labels may share one detector (e.g. species + genus-level class):
     # Thalassiosira_spp: { weights: /models/chains/thalassiosira_best.pt }
@@ -118,13 +120,13 @@ chain_counting:
 
 !!! note "Keys must match the classifier's output labels exactly"
     A detector is a single-class "cell vs. not-cell" model, so one detector
-    typically serves all species of a genus plus the genus-level class — map each
+    typically serves all species of a genus plus the genus-level class. Map each
     label to the same weights.
 
 !!! warning "Security"
     Detector `weights` are loaded with ultralytics' `YOLO(...)`, which unpickles
     the checkpoint and can execute arbitrary code. Only point `chain_counting` at
-    weights you trained or otherwise trust — the same caution that applies to the
+    weights you trained or otherwise trust. The same caution applies to the
     classifier checkpoint loaded with `--allow-unsafe`.
 
 ```bash
@@ -138,7 +140,7 @@ weights/IoU/conf used. Existing consumers ignore the extra dataset. See
 `configs/infer_with_chains.yaml` for a full example.
 
 !!! info "What `cell_count` stores"
-    The **number of cells in that ROI** — i.e. the number of boxes the detector
+    The number of cells in that ROI, i.e. the number of boxes the detector
     found in the image. Each ROI is one colony (a chain, ribbon, fan, branched or
     spherical colony), and `cell_count` is how many cells it contains; it is
     *not* a tally of colonies. `-1` means the ROI was not counted (not a counted
@@ -146,11 +148,11 @@ weights/IoU/conf used. Existing consumers ignore the extra dataset. See
 
 ## Counting on already-classified bins
 
-If you already have `_class.h5` files and only want to add (or refresh) counts —
-e.g. after training a new detector — use `chains-count` instead of re-running
+If you already have `_class.h5` files and only want to add (or refresh) counts,
+e.g. after training a new detector, use `chains-count` instead of re-running
 `infer`. It reuses the stored `class_name` to decide which ROIs to count, so it
-**skips the classifier entirely** and only runs the detector on the matching
-ROIs, reading their pixels from the raw bins:
+skips the classifier entirely and runs the detector only on the matching ROIs,
+whose pixels come from the raw bins:
 
 ```bash
 # Reuse the same inference config (input_path = raw bins, output_dir = the
@@ -177,7 +179,7 @@ of test images and a CSV with a filename column and an integer count column
 
 ```bash
 python -m ifcb_classify chains-eval \
-    --weights output/chains/chains_skeletonema_yolo11n/weights/best.pt \
+    --weights output/chains/chains_Skeletonema_yolo11s/weights/best.pt \
     --images /path/to/test_images \
     --counts-csv /path/to/test_image_counts.csv \
     --ious 0.3,0.5,0.7
@@ -186,8 +188,7 @@ python -m ifcb_classify chains-eval \
 It reports MAE, mean bias, exact-match and within-±1 accuracy, and total counts
 per IoU. Add `--output results.csv` for per-image predictions.
 
-**Checking one detector across species** — to verify that a single genus-level
-detector generalises (rather than training per species), run the *same*
-`--weights` against each species' test set and compare the metrics. Train a
-dedicated detector only if a particular species shows high error. See
-`configs/chains_eval_default.yaml`.
+To check that a single genus-level detector generalises across species (rather
+than training one per species), run the *same* `--weights` against each species'
+test set and compare the metrics. Train a dedicated detector only if a
+particular species shows high error. See `configs/chains_eval_default.yaml`.

@@ -5,22 +5,23 @@ plankton images using PyTorch.
 
 ## Capabilities
 
-- **Training** — Fine-tune 40+ pretrained architectures (ResNet, EfficientNet,
+- **Training.** Fine-tune 52 pretrained architectures (ResNet, EfficientNet,
   ConvNeXt, Vision Transformers, etc.) on class-folder organised image datasets,
-  with optional evaluation plots (static PNG + interactive HTML)
-- **Inference** — Batch-classify raw IFCB bins (`.roi/.adc/.hdr`) via
-  [ifcbkit](https://github.com/WHOIGit/ifcbkit) into HDF5 files in IFCB
-  Dashboard class_scores v3 format, with per-class decision thresholds; output
-  works with the IFCB Dashboard,
+  with optional evaluation plots (static PNG + interactive HTML). Run
+  `ifcb-classify list-models` to see them all
+- **Inference.** Batch-classify raw IFCB bins (`.roi/.adc/.hdr`) via
+  [ifcbkit](https://github.com/WHOIGit/ifcbkit) into IFCB Dashboard class_scores
+  v3 HDF5 by default, or into `csv`, `mat` and `csv-labels` via `--format`, with
+  per-class decision thresholds; output works with the IFCB Dashboard,
   [iRfcb](https://europeanifcbgroup.github.io/iRfcb/) and
   [ClassiPyR](https://europeanifcbgroup.github.io/ClassiPyR/)
-- **Chain / cell counting** — Optionally train per-taxon
+- **Chain / cell counting.** Optionally train per-taxon
   [YOLO](https://docs.ultralytics.com/) detectors that count individual cells in
   colony ROIs and store the count alongside each classification
-- **Experiment tracking** — CSV (default), MLflow, or Weights & Biases
-- **Built for pipelines** — Date-placeholder paths for date-organised continuous
-  inference, and automatic device selection (GPU for training, CPU by default for
-  inference)
+- **Experiment tracking.** CSV (default), MLflow, or Weights & Biases
+- **Built for pipelines.** Date-placeholder paths for date-organised continuous
+  inference, and automatic device selection (CUDA, then Apple MPS, then CPU) for
+  both training and inference, overridable per run with `infer --device`
 
 ## Where to next
 
@@ -51,7 +52,7 @@ or use the following BibTeX:
   author  = {Torstensson, Anders},
   title   = {ifcb-classify: a PyTorch pipeline for IFCB plankton image classification},
   year    = {2026},
-  version = {0.2.0},
+  version = {0.3.0},
   url     = {https://github.com/nodc-sweden/ifcb-pytorch-classify}
 }
 ```
