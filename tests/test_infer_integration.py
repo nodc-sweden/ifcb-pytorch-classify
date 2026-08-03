@@ -8,6 +8,7 @@ from PIL import Image
 
 from ifcb_classify import infer as infer_mod
 from ifcb_classify.config import TrainConfig, InferConfig
+from ifcb_classify.data.ifcb_bin import BinFiles
 from ifcb_classify.infer import _batch_predict, _classify_directory, _derive_classifier_name, _has_pending_bins, _load_thresholds
 from ifcb_classify.train import train_main
 
@@ -75,14 +76,9 @@ def test_has_pending_bins_multiformat(tmp_path):
 
 # --- _classify_directory (with stubbed bin I/O) -----------------------------
 
-class _FakeBin:
-    """A context-manageable stand-in for a pyifcb bin object."""
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        return False
+def _fake_bin(lid):
+    """A stand-in for the BinFiles handle iter_directory_bins yields."""
+    return BinFiles(lid=lid, adc_path=Path(f"{lid}.adc"), roi_path=Path(f"{lid}.roi"))
 
 
 def _two_roi_images(_bin):
@@ -92,7 +88,7 @@ def _two_roi_images(_bin):
 
 def _wire_directory(monkeypatch, lids):
     """Stub iter_directory_bins/iter_bin_images so no real bins are needed."""
-    monkeypatch.setattr(infer_mod, "iter_directory_bins", lambda d: [(lid, _FakeBin()) for lid in lids])
+    monkeypatch.setattr(infer_mod, "iter_directory_bins", lambda d: [(lid, _fake_bin(lid)) for lid in lids])
     monkeypatch.setattr(infer_mod, "iter_bin_images", _two_roi_images)
 
 

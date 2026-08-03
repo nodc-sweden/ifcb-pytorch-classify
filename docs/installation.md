@@ -1,6 +1,6 @@
 # Installation
 
-Requires Python 3.11–3.12, PyTorch, and
+Requires Python 3.11–3.14, PyTorch, and
 [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ## Get the code

@@ -13,7 +13,7 @@ checkpoint, ROI, bin)? See [Concepts & glossary](concepts.md) first.
 
 ## 1. Install (CPU)
 
-Requires Python 3.11–3.12 and
+Requires Python 3.11–3.14 and
 [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 Clone the repository, then set up a virtual environment and install the package
