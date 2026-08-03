@@ -50,6 +50,9 @@ This file records notable changes to the project. It follows
 - `pyproject.toml` now names the Ruff rule set explicitly and CI pins the Ruff
   version, so a change to Ruff's defaults upstream no longer silently changes
   which rules run.
+- The README and the docs now record that the optional `chains` extra installs
+  Ultralytics YOLO under AGPL-3.0, while the rest of the project is MIT. The
+  dependency is not new, but the licence difference was documented nowhere.
 
 ### Fixed
 
@@ -102,6 +105,19 @@ This file records notable changes to the project. It follows
   unwrapped the auxiliary output for the model named exactly `inception_v3`, so
   both died on the first batch with a type error. `inception_v3_untrained` is the
   from-scratch route the model registry advertises, and it had never worked.
+- A checkpoint that is missing, unreadable or truncated now says so. Every
+  failure to load used to come back as "Safe load failed, re-run with
+  `--allow-unsafe`", including a typo'd path and a half-finished download, and
+  taking that advice then failed anyway. A missing path or a directory raises
+  `FileNotFoundError`, an unreadable archive is reported as truncated or corrupt,
+  and only a genuine unpickling failure suggests `--allow-unsafe`. If the unsafe
+  load then fails too, the file is reported as corrupt rather than raising a bare
+  pickle error.
+- Writing a `.mat` for a bin with more than 65535 ROIs now raises instead of
+  wrapping. The v1 format stores `roinum` as uint16 and the value was cast
+  without a range check, so ROI 70000 was written as 4464 and every score and
+  count in the file was attributed to the wrong ROI, silently. Such a bin can
+  still be written to `h5` or `csv-labels`, which use int32.
 
 ### Upgrading
 

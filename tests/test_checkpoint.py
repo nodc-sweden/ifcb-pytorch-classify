@@ -136,3 +136,45 @@ def test_load_checkpoint_unsafe_allowed(tmp_path):
 
     data = load_checkpoint(tmp_path / "unsafe.pt", allow_unsafe=True)
     assert "state_dict" in data
+
+
+# --- file problems must not be reported as "re-run with --allow-unsafe" -----
+#
+# Advising --allow-unsafe for a typo'd path or a truncated download teaches
+# users to disable a safety check to diagnose an unrelated problem, and the
+# unsafe load then fails anyway.
+
+def test_load_checkpoint_missing_file_raises_file_not_found(tmp_path):
+    with pytest.raises(FileNotFoundError, match="Checkpoint not found"):
+        load_checkpoint(tmp_path / "nope.pt")
+
+
+def test_load_checkpoint_directory_raises_file_not_found(tmp_path):
+    (tmp_path / "adir").mkdir()
+    with pytest.raises(FileNotFoundError, match="Checkpoint not found"):
+        load_checkpoint(tmp_path / "adir")
+
+
+def test_load_checkpoint_missing_file_does_not_suggest_allow_unsafe(tmp_path):
+    with pytest.raises(FileNotFoundError) as excinfo:
+        load_checkpoint(tmp_path / "nope.pt")
+    assert "allow-unsafe" not in str(excinfo.value)
+
+
+def test_load_checkpoint_truncated_reports_corruption_not_unsafe(tmp_path):
+    model = TinyModel()
+    torch.save(model.state_dict(), tmp_path / "good.pt")
+    raw = (tmp_path / "good.pt").read_bytes()
+    (tmp_path / "trunc.pt").write_bytes(raw[: len(raw) // 3])
+
+    with pytest.raises(RuntimeError, match="truncated or corrupt") as excinfo:
+        load_checkpoint(tmp_path / "trunc.pt")
+    assert "allow-unsafe" not in str(excinfo.value)
+
+
+def test_load_checkpoint_corrupt_file_with_allow_unsafe_reports_corruption(tmp_path):
+    """--allow-unsafe on a corrupt file should say so, not raise a bare pickle error."""
+    (tmp_path / "junk.pt").write_bytes(b"\x00\x01\x02not a torch file" * 200)
+
+    with pytest.raises(RuntimeError, match="corrupt"):
+        load_checkpoint(tmp_path / "junk.pt", allow_unsafe=True)

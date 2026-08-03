@@ -84,6 +84,14 @@ uv pip install -e ".[dev]"      # Development tools (pytest, pytest-cov, ruff)
 uv pip install -e ".[docs]"     # Build this documentation site locally
 ```
 
+!!! warning "The `chains` extra is AGPL-3.0"
+    This project is MIT licensed, but the `chains` extra installs
+    [Ultralytics](https://github.com/ultralytics/ultralytics) YOLO, which is
+    AGPL-3.0. Anything you build on top of the chain-counting features inherits
+    that licence, including the obligation to offer source to users you serve
+    over a network. Ultralytics sells a commercial licence if that does not suit
+    you. The other extras and the default install are unaffected.
+
 ## Running the tests
 
 The test tools come from the `dev` extra above, so install it first:
