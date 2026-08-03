@@ -2,9 +2,9 @@
 
 This module defines the ``ifcb-classify`` CLI (also reachable as
 ``python -m ifcb_classify``). :func:`build_parser` declares the subcommands —
-``train``, ``infer``, ``chains-count``, ``chains-train``, ``chains-eval`` and
-``normalise`` — and :func:`run_cli` dispatches the parsed arguments to a small
-``_run_*`` handler per command.
+``train``, ``infer``, ``chains-count``, ``chains-train``, ``chains-eval``,
+``normalise`` and ``list-models`` — and :func:`run_cli` dispatches the parsed
+arguments to a small ``_run_*`` handler per command.
 
 Each handler resolves a config object from a ``--config`` YAML file and/or CLI
 overrides, then calls into the matching pipeline module. Heavy imports (torch,

@@ -1,12 +1,12 @@
 # Installation
 
-Requires Python 3.11–3.14, PyTorch, and
+Requires Python 3.11 to 3.14, PyTorch, and
 [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ## Get the code
 
-Clone the repository and enter it first — the install commands below do an
-editable install of the local checkout (`uv pip install -e .`):
+Clone the repository and enter it first, because the install commands below do
+an editable install of the local checkout (`uv pip install -e .`):
 
 ```bash
 git clone https://github.com/nodc-sweden/ifcb-pytorch-classify.git
@@ -33,9 +33,14 @@ uv pip install -e .
 
 ## With CUDA
 
-PyTorch from PyPI is CPU-only. To get CUDA support, install torch first from the
-[PyTorch wheel index](https://pytorch.org/get-started/locally/) for your CUDA
-version, then install the package:
+On Linux, the PyPI wheel already bundles CUDA (it pulls the NVIDIA runtime
+packages in as dependencies), so the plain install above is normally enough. On
+Windows and macOS the PyPI wheel is CPU-only.
+
+Use the [PyTorch wheel index](https://pytorch.org/get-started/locally/) when you
+need a CUDA version other than the bundled one, or to force a CPU-only build on
+Linux (`--index-url https://download.pytorch.org/whl/cpu`). Install torch first,
+then the package:
 
 **Linux/macOS:**
 
@@ -75,12 +80,15 @@ if you installed the CUDA build and still see `False`, see
 uv pip install -e ".[mlflow]"   # MLflow experiment tracking
 uv pip install -e ".[wandb]"    # Weights & Biases experiment tracking
 uv pip install -e ".[chains]"   # YOLO chain counting
-uv pip install -e ".[dev]"      # Development tools (pytest, ruff)
+uv pip install -e ".[dev]"      # Development tools (pytest, pytest-cov, ruff)
 uv pip install -e ".[docs]"     # Build this documentation site locally
 ```
 
 ## Running the tests
 
+The test tools come from the `dev` extra above, so install it first:
+
 ```bash
+uv pip install -e ".[dev]"
 python -m pytest tests/ -v
 ```

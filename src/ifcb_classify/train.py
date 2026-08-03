@@ -117,7 +117,7 @@ def _train_run(config: TrainConfig, device: torch.device, run_name: str, run_par
         num_workers=config.num_workers,
     )
 
-    model = get_model(config.model, num_classes).to(device)
+    model = get_model(config.model, num_classes, config.pretrained).to(device)
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 

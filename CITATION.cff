@@ -8,8 +8,8 @@ authors:
     given-names: Anders
     affiliation: "Swedish Meteorological and Hydrological Institute (SMHI)"
     orcid: "https://orcid.org/0000-0002-8283-656X"
-version: "0.2.0"
-date-released: "2026-06-26"
+version: "0.3.0"
+date-released: "2026-08-03"
 license: MIT
 repository-code: "https://github.com/nodc-sweden/ifcb-pytorch-classify"
 url: "https://nodc-sweden.github.io/ifcb-pytorch-classify/"

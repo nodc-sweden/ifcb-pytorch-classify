@@ -8,12 +8,12 @@ checkpoint, ROI, bin)? See [Concepts & glossary](concepts.md) first.
 !!! tip "Two ways to run every command"
     After installing, the tool is available both as `ifcb-classify <command>`
     (a console script) and as `python -m ifcb_classify <command>`. They are
-    identical — this guide uses the `python -m` form, but you can swap in
+    identical. This guide uses the `python -m` form, but you can swap in
     `ifcb-classify` anywhere.
 
-## 1. Install (CPU)
+## 1. Install
 
-Requires Python 3.11–3.14 and
+Requires Python 3.11 to 3.14 and
 [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 Clone the repository, then set up a virtual environment and install the package
@@ -28,15 +28,19 @@ source .venv/bin/activate    # Windows: .venv\Scripts\activate
 uv pip install -e .
 ```
 
-This installs the CPU build of PyTorch, which is enough for this walkthrough.
-**Training is much faster on an NVIDIA GPU** — for a CUDA build (and optional
-extras like MLflow or chain counting), see
+This pulls in PyTorch. On Linux the PyPI wheel bundles CUDA, so it is a multi-GB
+download and will use an NVIDIA GPU if you have one; on Windows and macOS it is
+CPU-only. Either way it is enough for this walkthrough. Training is much faster
+on an NVIDIA GPU. To pin a particular CUDA version, force a CPU-only build, or
+add optional extras like MLflow or chain counting, see
 [Installation → With CUDA](installation.md#with-cuda).
+
+The install also fetches `ifcbkit` from GitHub, so it needs network access.
 
 ## 2. Get some training data
 
-Training expects **one folder per class**, each folder full of the ROI images
-for that class:
+Training expects one folder per class, each folder full of the ROI images for
+that class:
 
 ```
 example_data/plankton/
@@ -49,7 +53,7 @@ example_data/plankton/
 This repo bundles a small [example dataset](https://github.com/nodc-sweden/ifcb-pytorch-classify/tree/main/example_data)
 (`example_data/plankton/`, six classes, 40 images each) so you can complete this
 walkthrough without building a dataset first. It's enough to *see the pipeline
-run*, not to train an accurate model — for that you need many more images per
+run*, but not to train an accurate model. For that you need many more images per
 class and more classes. See [Training](guides/training.md#labelling-images) for
 how to build your own labelled dataset.
 
@@ -66,7 +70,7 @@ for expectations and how to speed up a quick demo.
 
 When it finishes, the best checkpoint is written to your output directory
 (`output/` by default). **The filename is built from the run settings**, not a
-fixed name — with the command above it is:
+fixed name. With the command above it is:
 
 ```
 output/example-resnet50_dataset_squarepad_augmented_b64_lr0.0001_e20_best.pt
@@ -80,7 +84,7 @@ next step.
 
 ## 4. Run inference on raw bins
 
-Inference runs on **raw IFCB bins** (`.roi/.adc/.hdr` triples), not on ROI
+Inference runs on raw IFCB bins (`.roi/.adc/.hdr` triples), not on ROI
 images. This repo bundles one bin in `example_data/bins/`, so you can run this
 step directly:
 
@@ -92,8 +96,8 @@ python -m ifcb_classify infer \
 ```
 
 (For your own data, point `--input` at a directory of bins from your IFCB
-instrument. The toy model above won't classify a real bin *accurately* — it only
-knows six classes — but the run produces a valid output file so you see the
+instrument. The toy model above won't classify a real bin *accurately*, since it
+only knows six classes, but the run produces a valid output file so you see the
 pipeline work end to end.)
 
 This writes one `{sample}_class.h5` per bin, compatible with the IFCB Dashboard,
@@ -104,8 +108,8 @@ output details.
 
 ## Next steps
 
-- [Concepts & glossary](concepts.md) — what the terms mean if any were unfamiliar
-- [Configuration](configuration.md) — all training/inference options
-- [Troubleshooting](troubleshooting.md) — fixes for common install and run errors
-- [Chain counting](guides/chain-counting.md) — count cells in chain-forming taxa
-- [API reference](reference/ifcb_classify/index.md) — the Python API
+- [Concepts & glossary](concepts.md): what the terms mean if any were unfamiliar
+- [Configuration](configuration.md): all training/inference options
+- [Troubleshooting](troubleshooting.md): fixes for common install and run errors
+- [Chain counting](guides/chain-counting.md): count cells in chain-forming taxa
+- [API reference](reference/ifcb_classify/index.md): the Python API
