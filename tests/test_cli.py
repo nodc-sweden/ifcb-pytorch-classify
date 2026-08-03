@@ -153,3 +153,28 @@ def test_infer_parser_no_count_default():
     parser = build_parser()
     args = parser.parse_args(["infer", "--config", "infer.yaml"])
     assert args.no_count is False
+
+
+def test_list_models_parser():
+    parser = build_parser()
+    args = parser.parse_args(["list-models"])
+    assert args.command == "list-models"
+
+
+def test_list_models_output(capsys):
+    from ifcb_classify.models.registry import available_models
+
+    run_cli(["list-models"])
+    out = capsys.readouterr().out
+    names = available_models()
+    # header reports the count, and every registered model is listed
+    assert f"{len(names)} model architectures available" in out
+    assert "resnet50" in out
+    for name in names:
+        assert name in out
+
+
+def test_available_models_matches_registry():
+    from ifcb_classify.models.registry import MODELS, available_models
+
+    assert available_models() == sorted(MODELS)
