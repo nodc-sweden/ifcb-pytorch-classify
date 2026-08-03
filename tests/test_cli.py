@@ -138,9 +138,76 @@ def test_infer_parser_allow_unsafe():
 
 
 def test_infer_parser_allow_unsafe_default():
+    """Unset store_true flags must be None, not False.
+
+    The override dict keeps every value that ``is not None``, so a False default
+    would overwrite whatever the YAML config says. InferConfig supplies the real
+    default of False when neither the CLI nor the file sets it.
+    """
     parser = build_parser()
     args = parser.parse_args(["infer", "--config", "infer.yaml"])
-    assert args.allow_unsafe is False
+    assert args.allow_unsafe is None
+
+
+def _capture_infer_config(monkeypatch):
+    """Intercept infer_main and return a dict that receives the resolved config."""
+    import ifcb_classify.infer as infer_mod
+
+    captured: dict = {}
+    monkeypatch.setattr(infer_mod, "infer_main", lambda config: captured.update(config=config))
+    return captured
+
+
+def _write_infer_config(tmp_path, **extra):
+    import yaml
+
+    path = tmp_path / "infer.yaml"
+    body = {"input_path": str(tmp_path), "model_checkpoint": "m.pt", "output_dir": str(tmp_path), **extra}
+    path.write_text(yaml.safe_dump(body))
+    return path
+
+
+@pytest.mark.parametrize("key", ["overwrite", "allow_unsafe"])
+def test_infer_config_booleans_survive_a_bare_run(tmp_path, monkeypatch, key):
+    """A boolean set in the YAML config must not be clobbered by the CLI default."""
+    captured = _capture_infer_config(monkeypatch)
+    config_path = _write_infer_config(tmp_path, **{key: True})
+
+    run_cli(["infer", "--config", str(config_path)])
+
+    assert getattr(captured["config"], key) is True
+
+
+@pytest.mark.parametrize("key", ["overwrite", "allow_unsafe"])
+def test_infer_config_booleans_default_to_false(tmp_path, monkeypatch, key):
+    captured = _capture_infer_config(monkeypatch)
+    config_path = _write_infer_config(tmp_path)
+
+    run_cli(["infer", "--config", str(config_path)])
+
+    assert getattr(captured["config"], key) is False
+
+
+def test_infer_cli_flag_overrides_config(tmp_path, monkeypatch):
+    """The CLI still wins when the flag is actually passed."""
+    captured = _capture_infer_config(monkeypatch)
+    config_path = _write_infer_config(tmp_path, overwrite=False)
+
+    run_cli(["infer", "--config", str(config_path), "--overwrite"])
+
+    assert captured["config"].overwrite is True
+
+
+def test_chains_count_overwrite_survives_config(tmp_path, monkeypatch):
+    import ifcb_classify.chains.count as count_mod
+
+    captured: dict = {}
+    monkeypatch.setattr(count_mod, "count_main", lambda config: captured.update(config=config))
+    config_path = _write_infer_config(tmp_path, overwrite=True)
+
+    run_cli(["chains-count", "--config", str(config_path)])
+
+    assert captured["config"].overwrite is True
 
 
 def test_infer_parser_no_count():

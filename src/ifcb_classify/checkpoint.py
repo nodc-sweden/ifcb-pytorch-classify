@@ -13,6 +13,7 @@ checkpoint back for inference and transparently handles two formats:
 """
 
 import logging
+import pickle
 from pathlib import Path
 
 import torch
@@ -106,20 +107,17 @@ def load_checkpoint(
     for checkpoints you trust, since unpickling can execute arbitrary code.
     """
     path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Checkpoint not found: {path}")
+
     try:
         data = torch.load(path, map_location="cpu", weights_only=True)
-    except Exception as err:
-        if not allow_unsafe:
-            raise RuntimeError(
-                f"Safe load failed for {path}. If you trust this checkpoint, "
-                "re-run with --allow-unsafe."
-            ) from err
-        logger.warning(
-            "Safe load failed for %s — falling back to unsafe load. "
-            "Only load checkpoints from trusted sources.",
-            path,
-        )
-        data = torch.load(path, map_location="cpu", weights_only=False)
+    except pickle.UnpicklingError as err:
+        data = _load_unsafe(path, allow_unsafe, err)
+    except RuntimeError as err:
+        # The archive reader failed, so the file is unreadable rather than
+        # merely unsafe. torch's own message omits the path; add it.
+        raise RuntimeError(f"Could not read checkpoint {path}: {err}. It may be truncated or corrupt.") from err
 
     # Our pipeline checkpoints have "state_dict" and "config" keys
     if isinstance(data, dict) and "state_dict" in data and "config" in data:
@@ -142,6 +140,36 @@ def load_checkpoint(
             "transform": "dataset_squarepad",
         },
     }
+
+
+def _load_unsafe(path: Path, allow_unsafe: bool, err: Exception):
+    """Retry a failed safe load with ``weights_only=False``, if the user allowed it.
+
+    Reached only when the safe load hit an unpickling error, which means the file
+    holds pickled Python objects. That is normal for a legacy checkpoint and also
+    what a corrupt file looks like, so a failure here is reported as corruption
+    rather than left as a bare pickle error.
+    """
+    if not allow_unsafe:
+        raise RuntimeError(
+            f"{path} could not be loaded in safe mode, which usually means it is a legacy "
+            "checkpoint holding pickled Python objects. If you trust where it came from, "
+            "re-run with --allow-unsafe. If the file may instead be corrupt or incomplete, "
+            "check it before loading, since unpickling can execute arbitrary code."
+        ) from err
+
+    logger.warning(
+        "Safe load failed for %s, falling back to unsafe load. "
+        "Only load checkpoints from trusted sources.",
+        path,
+    )
+    try:
+        return torch.load(path, map_location="cpu", weights_only=False)
+    except Exception as unsafe_err:
+        raise RuntimeError(
+            f"{path} could not be loaded even with --allow-unsafe, so it is most likely "
+            "corrupt or truncated rather than merely unsafe."
+        ) from unsafe_err
 
 
 def _load_class_names(checkpoint_path: Path, classes_path: str | None) -> list[str]:

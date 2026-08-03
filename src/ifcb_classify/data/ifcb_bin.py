@@ -60,13 +60,38 @@ def _iter_images_from_bin(files: BinFiles) -> Iterator[tuple[int, Image.Image]]:
 
 
 def iter_directory_bins(dir_path: str | Path) -> Iterator[tuple[str, BinFiles]]:
-    """Yield (bin_lid, BinFiles) for each complete fileset under a directory."""
+    """Yield (bin_lid, BinFiles) for each complete fileset under a directory.
+
+    This is the single authority on which bins a directory run processes. The
+    discovery it delegates to only returns filesets that have a ``.hdr``, and it
+    skips ``skip``/``beads`` paths — the same filtering pyifcb applied, so the
+    exclusions are deliberate. Use :func:`find_headerless_bins` to report the one
+    exclusion that is not — an otherwise-complete fileset with no header.
+    """
     from ifcbkit import SyncIfcbDataDirectory
 
     dd = SyncIfcbDataDirectory(str(dir_path))
     for entry in dd.list():
         lid = entry["pid"]
         yield lid, BinFiles(lid=lid, adc_path=Path(entry["adc"]), roi_path=Path(entry["roi"]))
+
+
+def find_headerless_bins(dir_path: str | Path) -> list[Path]:
+    """Return ``.roi`` paths under ``dir_path`` whose fileset has no ``.hdr``.
+
+    Directory discovery needs the header, so these bins are readable —
+    :func:`iter_bin_images` opens them from a path fine — but invisible to a
+    directory run. Callers surface them so the omission is reported, not silent.
+
+    Deliberately narrow. Discovery also skips ``skip``/``beads`` paths and any
+    layout other than flat or ``Dyyyy/Dyyyymmdd/``, matching what pyifcb did;
+    reporting those would fire on every bin of a differently-organised archive.
+    Only the missing-header case is flagged, since that fileset is otherwise
+    complete and its exclusion is an accident of the file layout rather than a
+    choice.
+    """
+    roi_files = Path(dir_path).rglob("*.roi")
+    return sorted(p for p in roi_files if p.with_suffix(".adc").is_file() and not p.with_suffix(".hdr").is_file())
 
 
 def get_bin_lid(bin_path: str | Path) -> str:

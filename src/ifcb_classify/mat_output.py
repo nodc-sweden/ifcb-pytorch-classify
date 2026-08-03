@@ -62,6 +62,18 @@ def write_class_scores_mat(
     if cell_counts is not None and len(cell_counts) != n_rois:
         raise ValueError(f"Expected {n_rois} cell counts, got {len(cell_counts)}")
 
+    # roinum is a uint16 field in this format. A plain cast wraps out-of-range
+    # values silently (70000 becomes 4464), which misassociates every score and
+    # count in the file, so refuse instead. The h5 and csv-labels outputs use
+    # int32 and can carry such a bin.
+    roi_numbers = np.asarray(roi_numbers)
+    if n_rois and (roi_numbers.min() < 0 or roi_numbers.max() > 65535):
+        raise ValueError(
+            f"ROI numbers must be between 0 and 65535 to fit the .mat 'roinum' field, "
+            f"but this bin spans {roi_numbers.min()} to {roi_numbers.max()}. "
+            "Write this bin to h5 or csv-labels instead."
+        )
+
     variables = {
         "class2useTB": np.array([*class_labels, "unclassified"], dtype=object),
         "TBscores": scores.astype(np.float64),

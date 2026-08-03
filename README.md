@@ -91,4 +91,11 @@ If you use this software, please cite it. GitHub's "Cite this repository" button
 
 ## License
 
-See [LICENSE](LICENSE).
+This project is MIT licensed. See [LICENSE](LICENSE).
+
+The optional `chains` extra is different. It installs
+[Ultralytics](https://github.com/ultralytics/ultralytics) YOLO, which is
+AGPL-3.0, so anything you build on top of the chain-counting features inherits
+that licence rather than this one. Ultralytics sells a commercial licence if
+AGPL-3.0 does not suit you. Nothing in the default install pulls it in: training,
+inference and all output formats work without the extra.

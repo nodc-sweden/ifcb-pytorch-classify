@@ -17,6 +17,43 @@ def _write(tmp_path):
     return out, scores, class_labels, class_name_auto, class_name
 
 
+def test_mat_rejects_roi_numbers_beyond_uint16(tmp_path):
+    """roinum is stored as uint16; out-of-range values must not wrap silently.
+
+    A cast alone turned ROI 70000 into 4464, which misassociates every
+    downstream biovolume and count with no error and no warning.
+    """
+    scores = np.array([[0.5, 0.5]], dtype=np.float64)
+    out = tmp_path / "big_class_v1.mat"
+
+    with pytest.raises(ValueError, match="65535"):
+        write_class_scores_mat(
+            out, scores, ["A", "B"], np.array([70000], dtype=np.int64),
+            ["A"], ["A"], "clf",
+        )
+    assert not out.exists()
+
+
+def test_mat_accepts_the_largest_representable_roi_number(tmp_path):
+    scores = np.array([[0.5, 0.5]], dtype=np.float64)
+    out = tmp_path / "edge_class_v1.mat"
+
+    write_class_scores_mat(
+        out, scores, ["A", "B"], np.array([65535], dtype=np.int64), ["A"], ["A"], "clf",
+    )
+
+    assert loadmat(out, squeeze_me=True)["roinum"] == 65535
+
+
+def test_mat_rejects_negative_roi_numbers(tmp_path):
+    scores = np.array([[0.5, 0.5]], dtype=np.float64)
+    with pytest.raises(ValueError, match="between 0 and 65535"):
+        write_class_scores_mat(
+            tmp_path / "neg_class_v1.mat", scores, ["A", "B"],
+            np.array([-1], dtype=np.int64), ["A"], ["A"], "clf",
+        )
+
+
 def test_mat_scores_roundtrip_via_pyifcb_logic(tmp_path):
     out, scores, class_labels, _, _ = _write(tmp_path)
     mat = loadmat(out, squeeze_me=True)

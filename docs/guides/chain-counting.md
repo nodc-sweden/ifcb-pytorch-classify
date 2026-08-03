@@ -29,6 +29,14 @@ Requires the `chains` extra:
 uv pip install -e ".[chains]"
 ```
 
+!!! warning "This extra is AGPL-3.0"
+    The rest of the project is MIT, but `chains` installs
+    [Ultralytics](https://github.com/ultralytics/ultralytics) YOLO under
+    AGPL-3.0. Work built on the chain-counting features inherits that licence,
+    including the obligation to offer source to users you serve over a network.
+    Ultralytics sells a commercial licence as an alternative. See
+    [Installation](../installation.md#optional-extras).
+
 !!! tip "Annotating efficiently"
     Drawing every bounding box by hand is slow. See
     [Chain-counting annotation](chain-counting-annotation.md) for the full

@@ -71,6 +71,22 @@ def test_has_pending_bins_empty_directory(tmp_path):
     assert _has_pending_bins(empty_dir, tmp_path, ("h5",)) is False
 
 
+def test_has_pending_bins_directory_ignores_undiscoverable_bins(tmp_path):
+    """Pending work must be judged by the same enumeration that does the work.
+
+    ifcbkit's directory discovery skips filesets with no .hdr. Counting those as
+    pending made infer load the model, process nothing, and report them pending
+    again on every subsequent run.
+    """
+    bins_dir = tmp_path / "bins"
+    bins_dir.mkdir()
+    for suffix in (".roi", ".adc"):
+        src = BIN_PATH.with_suffix(suffix)
+        (bins_dir / src.name).write_bytes(src.read_bytes())
+
+    assert _has_pending_bins(bins_dir, tmp_path, ("h5",)) is False
+
+
 def test_has_pending_bins_multiformat(tmp_path):
     # A bin already written to h5 is still pending when csv is also requested.
     (tmp_path / "D20220519T124533_IFCB134_class.h5").touch()
@@ -146,6 +162,125 @@ def test_classify_directory_all_formats(tmp_path, monkeypatch):
     labels = pd.read_csv(tmp_path / "D1.csv")
     assert list(labels.columns) == ["file_name", "class_name", "class_name_auto", "score"]
     assert labels["file_name"].tolist() == ["D1_00000.png", "D1_00001.png"]
+
+
+# --- pretrained plumbed through to inference --------------------------------
+
+def _write_thresholds_json(path, thresholds_by_class):
+    """Write the {run}_thresholds_and_metrics.json layout training produces."""
+    import json
+
+    payload = {
+        "model_name": path.stem,
+        "best_epoch": 1,
+        "num_classes": len(thresholds_by_class),
+        "class_metrics": {
+            name: {"class_name": name, "threshold": value, "f1": 0.5, "precision": 0.5, "recall": 0.5, "support": 3}
+            for name, value in thresholds_by_class.items()
+        },
+    }
+    path.write_text(json.dumps(payload))
+
+
+def _stub_inference(monkeypatch, tmp_path, train_config):
+    """Wire infer_main's heavy dependencies to stubs, recording get_model's args.
+
+    Returns the dict the fake get_model records its call into.
+    """
+    model = torch.nn.Linear(3 * 8 * 8, 2)
+    recorded: dict = {}
+
+    def fake_get_model(name, num_classes, pretrained=True):
+        recorded.update(name=name, num_classes=num_classes, pretrained=pretrained)
+        return model
+
+    monkeypatch.setattr(infer_mod, "get_model", fake_get_model)
+    monkeypatch.setattr(
+        infer_mod,
+        "load_checkpoint",
+        lambda *a, **k: {"state_dict": model.state_dict(), "class_names": ["A", "B"], "config": train_config},
+    )
+    monkeypatch.setattr(infer_mod, "build_transform", lambda *a, **k: (lambda img: torch.rand(3 * 8 * 8)))
+    monkeypatch.setattr(infer_mod, "iter_bin_images", _two_roi_images)
+    return recorded
+
+
+_TRAIN_CONFIG = {"model": "resnet18", "transform": "dataset_squarepad", "image_width": 8, "image_height": 8}
+
+
+def test_infer_honours_pretrained_false_from_checkpoint(tmp_path, monkeypatch):
+    """A from-scratch checkpoint must be rebuilt from scratch at inference.
+
+    torchvision's ``weights=`` also reshapes some architectures (inception_v3
+    forces ``transform_input=True``), so rebuilding a ``pretrained: false``
+    checkpoint with pretrained weights silently changes preprocessing.
+    """
+    recorded = _stub_inference(monkeypatch, tmp_path, {**_TRAIN_CONFIG, "pretrained": False})
+
+    infer_mod.infer_main(InferConfig(input_path=str(BIN_PATH), model_checkpoint="m.pt", output_dir=str(tmp_path)))
+
+    assert recorded["pretrained"] is False
+
+
+def test_infer_defaults_pretrained_true_for_legacy_checkpoints(tmp_path, monkeypatch):
+    """Legacy checkpoints synthesise a config with no ``pretrained`` key."""
+    recorded = _stub_inference(monkeypatch, tmp_path, dict(_TRAIN_CONFIG))
+
+    infer_mod.infer_main(InferConfig(input_path=str(BIN_PATH), model_checkpoint="m.pt", output_dir=str(tmp_path)))
+
+    assert recorded["pretrained"] is True
+
+
+# --- threshold auto-detection ------------------------------------------------
+
+def test_load_thresholds_autodetects_training_output(tmp_path):
+    """Training writes {run}_thresholds_and_metrics.json; inference must find it."""
+    (tmp_path / "RUN_best.pt").touch()
+    _write_thresholds_json(tmp_path / "RUN_thresholds_and_metrics.json", {"A": 0.25, "B": 0.75})
+
+    config = InferConfig(model_checkpoint=str(tmp_path / "RUN_best.pt"), threshold_default=0.0)
+    np.testing.assert_allclose(_load_thresholds(config, ["A", "B"]), [0.25, 0.75])
+
+
+def test_load_thresholds_prefers_the_matching_run(tmp_path):
+    """With several runs in one output dir, pick the one matching the checkpoint."""
+    (tmp_path / "RUN_A_best.pt").touch()
+    _write_thresholds_json(tmp_path / "RUN_A_thresholds_and_metrics.json", {"A": 0.25, "B": 0.75})
+    _write_thresholds_json(tmp_path / "RUN_B_thresholds_and_metrics.json", {"A": 0.9, "B": 0.9})
+
+    config = InferConfig(model_checkpoint=str(tmp_path / "RUN_A_best.pt"), threshold_default=0.0)
+    np.testing.assert_allclose(_load_thresholds(config, ["A", "B"]), [0.25, 0.75])
+
+
+def test_load_thresholds_does_not_guess_between_runs(tmp_path, caplog):
+    """Ambiguous candidates must fall back to the default rather than guess."""
+    (tmp_path / "model_best.pt").touch()
+    _write_thresholds_json(tmp_path / "RUN_A_thresholds_and_metrics.json", {"A": 0.25, "B": 0.75})
+    _write_thresholds_json(tmp_path / "RUN_B_thresholds_and_metrics.json", {"A": 0.9, "B": 0.9})
+
+    config = InferConfig(model_checkpoint=str(tmp_path / "model_best.pt"), threshold_default=0.4)
+    with caplog.at_level("WARNING"):
+        np.testing.assert_allclose(_load_thresholds(config, ["A", "B"]), [0.4, 0.4])
+    assert "thresholds" in caplog.text.lower()
+
+
+def test_load_thresholds_autodetects_legacy_plain_name(tmp_path):
+    """A hand-placed thresholds.json keeps working."""
+    (tmp_path / "RUN_best.pt").touch()
+    _write_thresholds_json(tmp_path / "thresholds.json", {"A": 0.3, "B": 0.6})
+
+    config = InferConfig(model_checkpoint=str(tmp_path / "RUN_best.pt"), threshold_default=0.0)
+    np.testing.assert_allclose(_load_thresholds(config, ["A", "B"]), [0.3, 0.6])
+
+
+def test_load_thresholds_warns_when_none_found(tmp_path, caplog):
+    """Falling back to a flat default must not be silent."""
+    (tmp_path / "RUN_best.pt").touch()
+    config = InferConfig(model_checkpoint=str(tmp_path / "RUN_best.pt"), threshold_default=0.0)
+
+    with caplog.at_level("WARNING"):
+        _load_thresholds(config, ["A", "B"])
+    assert "no thresholds file" in caplog.text.lower()
 
 
 def test_classify_directory_skips_existing(tmp_path, monkeypatch):
