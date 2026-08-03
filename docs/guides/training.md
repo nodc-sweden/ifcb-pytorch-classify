@@ -15,8 +15,71 @@ python -m ifcb_classify train --config configs/train_default.yaml \
     --model convnext_tiny --lr 0.001 --epochs 30
 ```
 
-See [Configuration](../configuration.md) for the full list of training
-parameters and their defaults.
+New to terms like *epoch*, *learning rate*, or *fine-tuning*? See
+[Concepts & glossary](../concepts.md).
+
+## Configuration files
+
+Training is driven by a **YAML config file**, passed with `--config` (required
+for `train`).
+[`configs/train_default.yaml`](https://github.com/nodc-sweden/ifcb-pytorch-classify/blob/main/configs/train_default.yaml)
+is a ready-to-use, commented template covering every option — copy it and edit it
+for your own runs (data directory, model, learning rate, and so on).
+
+Any setting can also be **overridden on the command line** — as with `--model`,
+`--lr` and `--epochs` above — and CLI values take precedence over the file. A
+common workflow is to keep one config per dataset or experiment and tweak the odd
+parameter on the CLI.
+
+See [Configuration](../configuration.md) for the full parameter reference and
+defaults.
+
+## Supported models
+
+`--model` (or `model:` in the config) accepts any of **52 torchvision
+architectures** across these families, all fine-tuned from ImageNet-pretrained
+weights:
+
+| Family | Examples |
+|---|---|
+| ResNet / Wide ResNet / ResNeXt | `resnet18`, `resnet50` (default), `resnet152`, `wide_resnet50_2`, `resnext50_32x4d` |
+| ConvNeXt | `convnext_tiny`, `convnext_small`, `convnext_base`, `convnext_large` |
+| EfficientNetV2 | `efficientnet_v2_s`, `efficientnet_v2_m`, `efficientnet_v2_l` |
+| Vision Transformers | `vit_b_16`, `vit_l_16`, `swin_v2_t`, `maxvit_t` |
+| VGG / DenseNet / MobileNet / others | `vgg16`, `densenet121`, `mobilenet_v3_large`, `mnasnet1_0`, `alexnet`, … |
+
+To see the exact list of accepted names, run:
+
+```bash
+ifcb-classify list-models
+```
+
+The full registry (with the classifier-head details for each) is in the
+[`models.registry`](../reference/ifcb_classify/models/registry.md) API reference.
+Bigger models are generally more accurate but slower and more memory-hungry; the
+default `resnet50` is a solid all-round starting point.
+
+## Hardware and training time
+
+Training is much faster on an NVIDIA **GPU** (`cuda`) than on **CPU**. The device
+is selected automatically (GPU if available), and the default `resnet50` is a
+fairly heavy architecture:
+
+- **GPU** — a real dataset typically trains in minutes to a couple of hours.
+- **CPU** — expect it to be slow: tens of minutes for a tiny demo, many hours (or
+  impractical) for a large dataset. If you don't have a GPU, keep runs small.
+
+To speed up a **quick CPU demo** (e.g. on the bundled example data), use a
+lighter model and fewer epochs — accuracy will suffer, but you'll see the
+pipeline run:
+
+```bash
+python -m ifcb_classify train --config configs/train_default.yaml \
+    --data-dir example_data/plankton --dataset-version example \
+    --model convnext_tiny --epochs 5
+```
+
+For CUDA setup, see [Installation](../installation.md#with-cuda).
 
 ## Training data layout
 
@@ -50,6 +113,26 @@ Export the labelled ROIs as one folder per class (as above), then point
     which is separate from the bounding-box annotation used for
     [chain counting](chain-counting.md) (how many cells are in an ROI).
 
+## What training produces
+
+Everything lands in your `output_dir` (`output/` by default). Files are named
+after the **run**, not with a fixed name. The run name is built from the
+settings — `{dataset_version}-{model}_{transform}_b{batch_size}_lr{lr}_e{epochs}`
+— so a default run on data tagged `example` produces:
+
+| File | What it is |
+|---|---|
+| `example-resnet50_..._e20_best.pt` | The best checkpoint — pass this to `infer --model`. |
+| `example-resnet50_..._e20_classes.txt` | The class list, in the model's label order. |
+| `example-resnet50_..._e20_thresholds_and_metrics.json` | Per-class decision thresholds and metrics. |
+| `example-resnet50_..._e20.csv` | Per-epoch metrics (with the default `csv` tracker). |
+| `confusion_matrix/<run_name>/` | Per-epoch confusion matrices (`csv` tracker). |
+| `plots/<run_name>/` | Evaluation plots, if you passed `--plots`. |
+
+Only one `*_best.pt` is kept — it's overwritten whenever a later epoch scores
+higher on the `checkpoint_metric` (weighted F1 by default). There is **no**
+`model_best.pt`; use whatever `*_best.pt` file appears in `output/`.
+
 ## Evaluation plots
 
 Add `--plots` to generate evaluation plots after training:
@@ -63,6 +146,34 @@ recall scatter, class support distribution, top confused pairs) saved to
 `<output_dir>/plots/<run_name>/`. Interactive HTML plots are also generated
 (zoomable confusion matrix with row-normalized percentages, sortable per-class
 metrics table).
+
+## Reading the results
+
+A single overall accuracy number hides most of what matters. Look at:
+
+- **Training curves** — training and validation metrics per epoch. If validation
+  F1 stops improving (or falls) while training F1 keeps climbing, the model is
+  **overfitting**; if both are still rising at the last epoch, you likely
+  stopped too early. Adjust `epochs` accordingly.
+- **Per-class F1** — near-zero for some classes usually means **too few images**
+  in those classes. Collect more, or exclude tiny classes with
+  `min_class_images` (see [Configuration](../configuration.md)).
+- **Confusion matrix** — shows *which* classes get mistaken for which.
+  Off-diagonal hotspots between two visually similar taxa point to genuinely hard
+  pairs (more labelled examples help most here).
+- **Class support distribution** — how many images each class has. Large
+  imbalance (some classes hundreds, others a handful) drags down the rare
+  classes; `weighted_f1` accounts for size, but more balanced data is better.
+
+There's no universal "good" F1 — it depends on the number of classes and how
+separable they are. Practical levers, in rough order of impact: **more labelled
+data** (especially for weak classes), a **longer or shorter run** (from the
+curves), a different **model** or **transform**, then the **learning rate**.
+
+!!! note "The example dataset won't score well"
+    Six classes with 40 images each is enough to watch the pipeline run, not to
+    train an accurate model. Expect modest, noisy metrics — that's the data size,
+    not a bug.
 
 ## Dataset normalisation
 

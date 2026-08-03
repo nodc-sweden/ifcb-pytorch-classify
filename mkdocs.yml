@@ -36,14 +36,18 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting started: getting-started.md
-  - Installation: installation.md
+  - Get started:
+      - Getting started: getting-started.md
+      - Installation: installation.md
   - Guides:
       - Training: guides/training.md
       - Inference: guides/inference.md
       - Chain counting: guides/chain-counting.md
-      - Annotation & training: guides/chain-counting-annotation.md
-  - Configuration: configuration.md
+      - Chain-counting annotation: guides/chain-counting-annotation.md
+  - Reference:
+      - Concepts & glossary: concepts.md
+      - Configuration: configuration.md
+      - Troubleshooting: troubleshooting.md
   - API reference: reference/
 
 plugins:
@@ -71,6 +75,9 @@ plugins:
             # package landing page (empty __init__) is a useful index.
             summary: true
             show_submodules: false
+
+extra_css:
+  - stylesheets/extra.css
 
 markdown_extensions:
   - admonition

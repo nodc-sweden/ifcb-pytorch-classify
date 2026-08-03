@@ -28,10 +28,12 @@ plankton images using PyTorch.
 |---|---|
 | Get up and running quickly | [Getting started](getting-started.md) |
 | Install with CUDA or optional extras | [Installation](installation.md) |
+| Understand the terminology | [Concepts & glossary](concepts.md) |
 | Train a classifier | [Training](guides/training.md) |
 | Classify raw bins | [Inference](guides/inference.md) |
 | Count cells in chains/colonies | [Chain counting](guides/chain-counting.md) |
 | Look up config options | [Configuration](configuration.md) |
+| Fix a common error | [Troubleshooting](troubleshooting.md) |
 | Browse the code API | [API reference](reference/ifcb_classify/index.md) |
 
 The project lives on

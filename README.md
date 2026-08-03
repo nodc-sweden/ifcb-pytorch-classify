@@ -10,7 +10,7 @@
 
 Pipeline for training and running inference on IFCB (Imaging FlowCytobot) plankton images using PyTorch.
 
-📖 **Full documentation: <https://nodc-sweden.github.io/ifcb-pytorch-classify/>**
+**Full documentation: <https://nodc-sweden.github.io/ifcb-pytorch-classify/>**
 
 ## Capabilities
 
@@ -30,16 +30,23 @@ source .venv/bin/activate    # Windows: .venv\Scripts\activate
 uv pip install -e .
 ```
 
-Train a classifier, then classify a directory of raw IFCB bins:
+Train a classifier on the bundled [example dataset](example_data/), then classify
+a directory of raw IFCB bins. The trained checkpoint is named from the run
+settings (e.g. `example-resnet50_..._best.pt`), so point `--model` at whatever
+`*_best.pt` file lands in `output/`:
 
 ```bash
-python -m ifcb_classify train --config configs/train_default.yaml
+python -m ifcb_classify train --config configs/train_default.yaml \
+    --data-dir example_data/plankton --dataset-version example
 
 python -m ifcb_classify infer \
-    --input /path/to/bins \
-    --model output/model_best.pt \
-    --output /path/to/class_scores
+    --input example_data/bins \
+    --model output/example-resnet50_dataset_squarepad_augmented_b64_lr0.0001_e20_best.pt \
+    --output output/class_scores
 ```
+
+(`example_data/bins/` is a bundled sample bin, so this runs as-is; point
+`--input` at your own bins for real data.)
 
 See [Getting started](docs/getting-started.md) for the full walkthrough, and
 [Installation](docs/installation.md) for CUDA and optional extras.
@@ -50,11 +57,13 @@ See [Getting started](docs/getting-started.md) for the full walkthrough, and
 |---|---|
 | [Getting started](docs/getting-started.md) | Install, train, and run inference end to end |
 | [Installation](docs/installation.md) | CPU, CUDA, and optional extras |
+| [Concepts & glossary](docs/concepts.md) | ML and IFCB terms explained for beginners |
 | [Training](docs/guides/training.md) | Training options, plots, normalisation |
 | [Inference](docs/guides/inference.md) | Classifying raw bins, output format |
 | [Chain counting](docs/guides/chain-counting.md) | Per-taxon YOLO cell counting |
-| [Annotation & training](docs/guides/chain-counting-annotation.md) | Labelling workflow for chain detectors |
+| [Chain-counting annotation](docs/guides/chain-counting-annotation.md) | Labelling workflow for chain detectors |
 | [Configuration](docs/configuration.md) | Config parameters and date placeholders |
+| [Troubleshooting](docs/troubleshooting.md) | Fixes for common install/run errors |
 
 The rendered site (with the auto-generated API reference) is at
 <https://nodc-sweden.github.io/ifcb-pytorch-classify/>.
