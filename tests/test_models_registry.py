@@ -22,7 +22,9 @@ def test_all_models_registered():
 
 
 def test_get_model_resnet50():
-    model = get_model("resnet50", num_classes=6)
+    # pretrained=False: this asserts the head swap, not the weights, and the
+    # default would download ~100 MB of ImageNet weights on every CI job.
+    model = get_model("resnet50", num_classes=6, pretrained=False)
     assert model.fc.out_features == 6
 
 

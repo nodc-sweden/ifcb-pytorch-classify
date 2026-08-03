@@ -65,9 +65,9 @@ def build_parser() -> argparse.ArgumentParser:
     infer_parser.add_argument("--classes", dest="classes_path", help="Path to classes.txt (auto-detected from model dir if not set)")
     infer_parser.add_argument("--model-name", dest="model_name", help="Model architecture name for legacy checkpoints (e.g. resnet50)")
     infer_parser.add_argument("--format", dest="output_format", help="Output format(s): h5 (default), csv, mat, csv-labels, comma-separated (e.g. h5,csv-labels), or 'all'")
-    infer_parser.add_argument("--overwrite", action="store_true", default=False, help="Overwrite existing output files (default: skip)")
+    infer_parser.add_argument("--overwrite", action="store_true", default=None, help="Overwrite existing output files (default: skip)")
     infer_parser.add_argument("--num-threads", dest="num_threads", type=int, help="Limit CPU threads for inference (default: all cores)")
-    infer_parser.add_argument("--allow-unsafe", dest="allow_unsafe", action="store_true", default=False, help="Allow unsafe checkpoint loading for legacy .pt files")
+    infer_parser.add_argument("--allow-unsafe", dest="allow_unsafe", action="store_true", default=None, help="Allow unsafe checkpoint loading for legacy .pt files")
     infer_parser.add_argument("--no-count", dest="no_count", action="store_true", default=False, help="Disable chain counting even if enabled in the config")
     infer_parser.add_argument("-v", "--verbose", action="store_true")
 
@@ -79,7 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
     chains_count_parser.add_argument("--config", help="Path to inference YAML config (with a chain_counting block)")
     chains_count_parser.add_argument("--input", dest="input_path", help="Path to raw bin file or directory (for ROI pixels)")
     chains_count_parser.add_argument("--output", dest="output_dir", help="Directory of existing *_class.h5 files to update")
-    chains_count_parser.add_argument("--overwrite", action="store_true", default=False, help="Re-count files that already have chain counts")
+    chains_count_parser.add_argument("--overwrite", action="store_true", default=None, help="Re-count files that already have chain counts")
     chains_count_parser.add_argument("--num-threads", dest="num_threads", type=int, help="Limit CPU threads (default: all cores)")
     chains_count_parser.add_argument("-v", "--verbose", action="store_true")
 

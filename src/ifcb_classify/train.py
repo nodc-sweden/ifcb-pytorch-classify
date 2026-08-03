@@ -162,7 +162,7 @@ def _run_training_loop(
     best_confusion_matrix = None
 
     for epoch in range(1, config.epochs + 1):
-        train_loss, train_acc = _train_epoch(model, train_loader, loss_fn, optimizer, device, config.model)
+        train_loss, train_acc = _train_epoch(model, train_loader, loss_fn, optimizer, device)
         val_loss, val_acc = _validate_epoch(model, val_loader, loss_fn, device, metrics_calc)
 
         results = metrics_calc.compute()
@@ -229,11 +229,14 @@ def _finalize_run(config, run_name, all_epoch_metrics, best_confusion_matrix, cl
     logger.info("Run complete: %s", run_name)
 
 
-def _train_epoch(model, loader, loss_fn, optimizer, device, model_name):
+def _train_epoch(model, loader, loss_fn, optimizer, device):
     """Run one training pass over ``loader`` and return ``(avg_loss, accuracy)``.
 
-    ``inception_v3`` is special-cased: in training mode it returns a
-    ``(logits, aux_logits)`` tuple, so we discard the auxiliary output here.
+    Architectures with auxiliary classifiers (``inception_v3``, ``googlenet``)
+    return a namedtuple of logits in training mode; only the primary head feeds
+    the loss. Detected by shape rather than by model name, since the aux heads
+    are present whenever ``weights=None`` keeps them — including under aliases
+    like ``inception_v3_untrained``.
     """
     model.train()
     total_loss = 0.0
@@ -244,10 +247,9 @@ def _train_epoch(model, loader, loss_fn, optimizer, device, model_name):
         images, labels = images.to(device), labels.to(device)
         optimizer.zero_grad(set_to_none=True)
 
-        if model_name == "inception_v3":
-            preds, _ = model(images)
-        else:
-            preds = model(images)
+        preds = model(images)
+        if isinstance(preds, tuple):
+            preds = preds[0]
 
         loss = loss_fn(preds, labels)
         loss.backward()

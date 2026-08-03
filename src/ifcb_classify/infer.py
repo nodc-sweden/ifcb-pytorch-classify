@@ -27,7 +27,7 @@ import yaml
 from ifcb_classify.checkpoint import load_checkpoint
 from ifcb_classify.config import InferConfig
 from ifcb_classify.data.datasets import build_transform
-from ifcb_classify.data.ifcb_bin import get_bin_lid, iter_bin_images, iter_directory_bins
+from ifcb_classify.data.ifcb_bin import find_headerless_bins, get_bin_lid, iter_bin_images, iter_directory_bins
 from ifcb_classify.device import get_device
 from ifcb_classify.hdf5_output import resolve_class_names, write_class_scores
 from ifcb_classify.models.factory import get_model
@@ -52,6 +52,9 @@ def infer_main(config: InferConfig) -> None:
     output_dir = Path(config.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    if input_path.is_dir():
+        _warn_headerless_bins(input_path)
+
     formats_early = config.resolved_formats()
     if not config.overwrite and not _has_pending_bins(input_path, output_dir, formats_early):
         logger.info("No new bins to classify — skipping model load")
@@ -71,7 +74,11 @@ def infer_main(config: InferConfig) -> None:
     logger.info("Using device: %s", device)
 
     set_seed(train_config.get("seed", 42))
-    model = get_model(train_config["model"], num_classes)
+    # Rebuild the architecture exactly as training did. torchvision's ``weights=``
+    # also reshapes some models (inception_v3 forces transform_input=True), so a
+    # from-scratch checkpoint rebuilt with pretrained weights would be run under
+    # preprocessing it never saw. Legacy checkpoints carry no ``pretrained`` key.
+    model = get_model(train_config["model"], num_classes, train_config.get("pretrained", True))
     model.load_state_dict(checkpoint["state_dict"])
     model.to(device)
     model.eval()
@@ -119,25 +126,46 @@ def _build_chain_counter(config: InferConfig):
     return counter
 
 
+def _warn_headerless_bins(dir_path: Path) -> None:
+    """Warn about complete-but-headerless filesets a directory run will not reach.
+
+    Emitted before the pending-work check so the omission is visible even on a
+    run that has nothing else to do.
+    """
+    skipped = find_headerless_bins(dir_path)
+    if not skipped:
+        return
+
+    shown = ", ".join(p.name for p in skipped[:5])
+    if len(skipped) > 5:
+        shown += f", … (+{len(skipped) - 5} more)"
+    logger.warning(
+        "Skipping %d bin(s) with no .hdr file: %s. Directory discovery needs the header, "
+        "so these will not be classified — pass a bin's path directly to classify it anyway.",
+        len(skipped), shown,
+    )
+
+
 def _has_pending_bins(input_path: Path, output_dir: Path, formats: tuple[str, ...]) -> bool:
     """Check whether any bin is missing at least one requested output file.
 
     A bin is "done" only when every requested format's file already exists, so a
     bin classified to h5 but not yet to a newly added csv/mat format still counts
-    as pending. For directories, uses rglob to find bins in subdirectories.
+    as pending. Directories are enumerated with :func:`iter_directory_bins`, the
+    same discovery that does the work, so nothing it skips is reported pending.
     """
     if input_path.is_file():
         lid = get_bin_lid(input_path)
         return not _bin_outputs_complete(output_dir, lid, formats)
 
     if input_path.is_dir():
-        # Sort reverse so newest samples (by name, which encodes timestamp) are checked first
-        roi_files = sorted(input_path.rglob("*.roi"), reverse=True)
-        for roi_file in roi_files:
-            lid = get_bin_lid(roi_file)
-            if not _bin_outputs_complete(output_dir, lid, formats):
-                return True
-        return False
+        # Judged by the same enumeration that does the work. Globbing for *.roi
+        # here instead would count bins that directory discovery never yields
+        # (e.g. a fileset with no .hdr) as pending forever.
+        return any(
+            not _bin_outputs_complete(output_dir, lid, formats)
+            for lid, _ in iter_directory_bins(input_path)
+        )
 
     return True
 
@@ -352,19 +380,24 @@ def _load_thresholds(config: InferConfig, class_names: list[str]) -> np.ndarray:
     """Resolve per-class decision thresholds, ordered to match ``class_names``.
 
     Resolution order: an explicit ``thresholds_path`` (JSON or YAML), else a
-    ``thresholds.json`` auto-detected next to the checkpoint, else a flat array
+    thresholds file auto-detected next to the checkpoint, else a flat array
     of ``config.threshold_default`` for every class. Classes absent from a file
     get ``NaN``, which downstream code treats as "no threshold" (accept argmax).
     """
     path = config.thresholds_path
 
-    # Auto-detect thresholds.json from model directory
     if not path:
-        model_dir = Path(config.model_checkpoint).parent
-        candidate = model_dir / "thresholds.json"
-        if candidate.exists():
+        checkpoint = Path(config.model_checkpoint)
+        candidate = _find_thresholds_file(checkpoint)
+        if candidate is not None:
             logger.info("Auto-detected thresholds: %s", candidate)
             path = str(candidate)
+        else:
+            logger.warning(
+                "No thresholds file found next to %s — using the flat default of %.3f for every class. "
+                "No ROI will be marked 'unclassified'. Pass --thresholds to apply per-class thresholds.",
+                checkpoint, config.threshold_default,
+            )
 
     if path:
         if path.endswith(".json"):
@@ -375,6 +408,38 @@ def _load_thresholds(config: InferConfig, class_names: list[str]) -> np.ndarray:
         return np.array([data.get(c, np.nan) for c in class_names], dtype=np.float64)
 
     return np.full(len(class_names), config.threshold_default, dtype=np.float64)
+
+
+def _find_thresholds_file(checkpoint: Path) -> Path | None:
+    """Locate the thresholds JSON training wrote next to ``checkpoint``.
+
+    Training names it ``{run_name}_thresholds_and_metrics.json`` alongside
+    ``{run_name}_best.pt``, so the run name is matched first. One output
+    directory often holds several runs; rather than guess between them, an
+    ambiguous match resolves to nothing and the caller falls back to the flat
+    default. A hand-placed ``thresholds.json`` is still honoured.
+    """
+    model_dir = checkpoint.parent
+    run_name = checkpoint.stem.removesuffix("_best")
+
+    exact = model_dir / f"{run_name}_thresholds_and_metrics.json"
+    if exact.is_file():
+        return exact
+
+    plain = model_dir / "thresholds.json"
+    if plain.is_file():
+        return plain
+
+    candidates = sorted(model_dir.glob("*_thresholds_and_metrics.json"))
+    if len(candidates) == 1:
+        return candidates[0]
+    if candidates:
+        logger.warning(
+            "Found %d thresholds files next to %s and none matches the run name %r; "
+            "not guessing between them. Pass --thresholds to choose one.",
+            len(candidates), checkpoint.name, run_name,
+        )
+    return None
 
 
 def _derive_classifier_name(config: InferConfig, train_config: dict) -> str:
