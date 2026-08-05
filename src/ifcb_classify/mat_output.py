@@ -18,6 +18,11 @@ Dashboard (via pyifcb's v1 reader) and processable by
 When chain counting ran, a per-ROI ``cell_count`` field (int32, ``-1`` where not
 counted) is also written, mirroring the HDF5 output's ``cell_count`` dataset, so
 iRfcb's ``ifcb_summarize_cell_counts`` can read chain counts from the ``.mat`` too.
+
+A ``provenance`` struct records what produced the scores (see
+:mod:`ifcb_classify.provenance`). Both it and ``cell_count`` are additive: MATLAB
+readers resolve variables by name, so one that does not know these simply does
+not ask for them.
 """
 
 from pathlib import Path
@@ -35,6 +40,7 @@ def write_class_scores_mat(
     class_name: list[str],
     classifier_name: str,
     cell_counts: np.ndarray | None = None,
+    provenance: dict[str, str] | None = None,
 ) -> None:
     """Write an iRfcb/Dashboard-compatible v1 class-scores ``.mat`` file.
 
@@ -52,6 +58,10 @@ def write_class_scores_mat(
         cell_counts: Optional int array of per-ROI cell counts, length N (``-1``
             marks ROIs that were not counted). Written as a ``cell_count`` field
             when provided; omitted otherwise (fully backward compatible).
+        provenance: Optional string mapping describing what produced the scores
+            (see :mod:`ifcb_classify.provenance`), written as a ``provenance``
+            struct. Readers look variables up by name and ignore unknown ones, so
+            this is additive in the same way ``cell_count`` already is.
     """
     n_rois, n_classes = scores.shape
     if len(class_labels) != n_classes:
@@ -84,5 +94,7 @@ def write_class_scores_mat(
     }
     if cell_counts is not None:
         variables["cell_count"] = np.asarray(cell_counts, dtype=np.int32).reshape(-1, 1)
+    if provenance:
+        variables["provenance"] = {k: str(v) for k, v in provenance.items()}
 
     savemat(output_path, variables, do_compression=True)

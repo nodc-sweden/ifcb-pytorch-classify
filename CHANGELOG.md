@@ -6,6 +6,14 @@ This file records notable changes to the project. It follows
 
 ## [Unreleased]
 
+### Changed
+
+- The package version is now declared in `src/ifcb_classify/__init__.py` and read
+  from there by hatchling, instead of being written twice. `importlib.metadata`
+  reports the version that was *installed*, which in an editable checkout is
+  whatever the last `pip install` saw — it was reporting 0.1.0 for a 0.3.0 tree,
+  which would have stamped a wrong version into every output file.
+
 ### Fixed
 
 - Inference no longer applies the training augmentation. A transform name bundles
@@ -33,6 +41,22 @@ This file records notable changes to the project. It follows
     augmentation, so brightness and contrast jitter no longer inflate them.
 
 ### Added
+
+- Class-scores outputs now record what produced them. The `h5` writes root
+  attributes and the `mat` a `provenance` struct, carrying the `ifcb-classify`,
+  Python, torch and torchvision versions, the transform actually applied, the
+  model architecture, and the checkpoint's SHA256.
+
+  Until now the only provenance was `classifier_name`, derived from the
+  checkpoint's *parent directory name* — so the same weights in two differently
+  named folders produced differently labelled outputs, and nothing recorded the
+  code or libraries involved. Given two files that disagreed, neither said why.
+
+  Both additions are additive: HDF5 readers ignore unknown attributes and MATLAB
+  readers resolve variables by name, exactly as the existing `cell_count` field
+  already relies on. No timestamp is recorded, so two identical runs still
+  produce comparable files. `csv` and `csv-labels` are unchanged, since their
+  column layouts are a contract with iRfcb and ClassiPyR.
 
 - `scripts/recompute_thresholds.py`, which refits an existing checkpoint's
   per-class thresholds against a de-augmented validation split. It reconstructs

@@ -31,6 +31,7 @@ from ifcb_classify.data.ifcb_bin import find_headerless_bins, get_bin_lid, iter_
 from ifcb_classify.device import get_device
 from ifcb_classify.hdf5_output import resolve_class_names, write_class_scores
 from ifcb_classify.models.factory import get_model
+from ifcb_classify.provenance import build_provenance
 from ifcb_classify.seed import set_seed
 
 logger = logging.getLogger(__name__)
@@ -106,6 +107,9 @@ def infer_main(config: InferConfig) -> None:
 
     thresholds = _load_thresholds(config, class_names)
     classifier_name = config.classifier_name or _derive_classifier_name(config, train_config)
+    # classifier_name comes from the checkpoint's parent directory, so it says
+    # nothing reliable about what actually ran. This does.
+    provenance = build_provenance(transform_name, train_config["model"], config.model_checkpoint)
     counter = _build_chain_counter(config)
     formats = config.resolved_formats()
     logger.info("Writing output format(s): %s", ", ".join(formats))
@@ -113,9 +117,9 @@ def infer_main(config: InferConfig) -> None:
         logger.warning("Chain counting is enabled but none of 'h5', 'mat', 'csv-labels' is an output format; cell counts are only stored in those formats, so no counts will be written.")
 
     if input_path.is_file():
-        _classify_bin_file(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, formats, counter)
+        _classify_bin_file(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, formats, counter, provenance)
     elif input_path.is_dir():
-        _classify_directory(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, formats, counter)
+        _classify_directory(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, formats, counter, provenance)
     else:
         raise FileNotFoundError(f"Input path not found: {input_path}")
 
@@ -201,7 +205,7 @@ def _bin_outputs_complete(output_dir: Path, lid: str, formats: tuple[str, ...]) 
 
 
 def _classify_bin_file(
-    bin_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, formats, counter=None
+    bin_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, formats, counter=None, provenance=None
 ):
     """Classify a single bin file and write its class-scores output(s).
 
@@ -235,11 +239,11 @@ def _classify_bin_file(
         return
 
     scores = _batch_predict(model, images, device, batch_size)
-    _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter, raw_images)
+    _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter, raw_images, provenance)
 
 
 def _classify_directory(
-    dir_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, formats, counter=None
+    dir_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, formats, counter=None, provenance=None
 ):
     """Classify every bin in a directory, skipping ones already classified.
 
@@ -269,7 +273,7 @@ def _classify_directory(
             continue
 
         scores = _batch_predict(model, images, device, batch_size)
-        _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter, raw_images)
+        _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter, raw_images, provenance)
 
 
 def _batch_predict(model, images, device, batch_size):
@@ -288,7 +292,7 @@ def _batch_predict(model, images, device, batch_size):
     return np.concatenate(all_scores, axis=0)
 
 
-def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter=None, raw_images=None):
+def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter=None, raw_images=None, provenance=None):
     """Write the requested class-scores file(s) for a bin.
 
     ``formats`` is any subset of ``("h5", "csv", "mat", "csv-labels")``. A bin is
@@ -328,7 +332,7 @@ def _write_output(output_dir, lid, scores, class_names, target_numbers, classifi
     if h5_path is not None:
         write_class_scores(
             h5_path, scores, class_names, roi_numbers, classifier_name, thresholds,
-            cell_counts=cell_counts, cell_counter_models=models_meta,
+            cell_counts=cell_counts, cell_counter_models=models_meta, provenance=provenance,
         )
         written.append(h5_path)
 
@@ -343,7 +347,7 @@ def _write_output(output_dir, lid, scores, class_names, target_numbers, classifi
 
         write_class_scores_mat(
             mat_path, scores, class_names, roi_numbers, class_name_auto, class_name,
-            classifier_name, cell_counts=cell_counts,
+            classifier_name, cell_counts=cell_counts, provenance=provenance,
         )
         written.append(mat_path)
 

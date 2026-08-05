@@ -51,6 +51,7 @@ def write_class_scores(
     thresholds: np.ndarray,
     cell_counts: np.ndarray | None = None,
     cell_counter_models: dict | None = None,
+    provenance: dict[str, str] | None = None,
 ) -> None:
     """Write IFCB Dashboard class_scores v3 HDF5 file.
 
@@ -66,6 +67,10 @@ def write_class_scores(
             When omitted, no chain-count data is written (fully backward compatible).
         cell_counter_models: Optional provenance mapping (class -> {weights, iou, conf})
             stored as a JSON attribute when cell_counts is written.
+        provenance: Optional string mapping describing what produced the scores
+            (see :mod:`ifcb_classify.provenance`), written as root attributes.
+            Readers that don't know these keys ignore them, so the file stays
+            valid class_scores v3.
     """
     n_rois, n_classes = scores.shape
     if len(class_labels) != n_classes:
@@ -93,3 +98,5 @@ def write_class_scores(
             f.create_dataset("cell_count", data=np.asarray(cell_counts, dtype=np.int32))
             if cell_counter_models is not None:
                 f.attrs["cell_counter_models"] = json.dumps(cell_counter_models)
+        for key, value in (provenance or {}).items():
+            f.attrs[key] = value
