@@ -99,39 +99,6 @@ def test_identical_runs_stay_byte_identical(tmp_path, runs):
     assert attrs[0] == attrs[1]
 
 
-def test_provenance_written_as_mat_struct(tmp_path):
-    from scipy.io import loadmat
-
-    from ifcb_classify.mat_output import write_class_scores_mat
-
-    out = tmp_path / "D1_class_v1.mat"
-    write_class_scores_mat(
-        out, np.array([[0.7, 0.3]]), ["A", "B"], np.array([1], dtype=np.int32),
-        ["A"], ["A"], "my_model",
-        provenance=build_provenance("dataset_squarepad", "resnet50"),
-    )
-
-    data = loadmat(out)
-    assert data["provenance"]["transform"][0, 0][0] == "dataset_squarepad"
-    assert data["provenance"]["model_architecture"][0, 0][0] == "resnet50"
-    # the v1 field set iRfcb and the dashboard read is untouched
-    for field in ("class2useTB", "TBscores", "roinum", "TBclass", "TBclass_above_threshold", "classifierName"):
-        assert field in data
-
-
-def test_mat_without_provenance_gains_no_variable(tmp_path):
-    from scipy.io import loadmat
-
-    from ifcb_classify.mat_output import write_class_scores_mat
-
-    out = tmp_path / "D1_class_v1.mat"
-    write_class_scores_mat(
-        out, np.array([[0.7, 0.3]]), ["A", "B"], np.array([1], dtype=np.int32),
-        ["A"], ["A"], "my_model",
-    )
-    assert "provenance" not in loadmat(out)
-
-
 def test_version_comes_from_installed_metadata():
     """pyproject.toml is the single source; this reads it back via the install."""
     from importlib.metadata import version

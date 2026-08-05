@@ -34,21 +34,22 @@ This file records notable changes to the project. It follows
 
 ### Added
 
-- Class-scores outputs now record what produced them. The `h5` writes root
-  attributes and the `mat` a `provenance` struct, carrying the `ifcb-classify`,
-  Python, torch and torchvision versions, the transform actually applied, the
-  model architecture, and the checkpoint's SHA256.
+- The `h5` class-scores output now records what produced it: root attributes
+  carrying the `ifcb-classify`, Python, torch and torchvision versions, the
+  transform actually applied, the model architecture, and the checkpoint's
+  SHA256.
 
   Until now the only provenance was `classifier_name`, derived from the
   checkpoint's *parent directory name* — so the same weights in two differently
   named folders produced differently labelled outputs, and nothing recorded the
   code or libraries involved. Given two files that disagreed, neither said why.
 
-  Both additions are additive: HDF5 readers ignore unknown attributes and MATLAB
-  readers resolve variables by name, exactly as the existing `cell_count` field
-  already relies on. No timestamp is recorded, so two identical runs still
-  produce comparable files. `csv` and `csv-labels` are unchanged, since their
-  column layouts are a contract with iRfcb and ClassiPyR.
+  HDF5 readers ignore unknown attributes, so this is additive there. No timestamp
+  is recorded, so two identical runs still produce comparable files. The `mat`,
+  `csv` and `csv-labels` outputs are unchanged: the `mat` is an interchange
+  format for iRfcb and the Dashboard whose native reader aborts the whole file on
+  any variable it cannot represent (a struct among them), so provenance stays in
+  the `h5`; the csv column layouts are a contract with iRfcb and ClassiPyR.
 
   Note that `ifcb_classify_version` is the *installed* version. An editable
   checkout keeps whatever its last `pip install -e .` saw, so run that after

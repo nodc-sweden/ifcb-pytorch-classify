@@ -345,9 +345,11 @@ def _write_output(output_dir, lid, scores, class_names, target_numbers, classifi
     if mat_path is not None:
         from ifcb_classify.mat_output import write_class_scores_mat
 
+        # The .mat deliberately omits provenance: iRfcb's native reader aborts on
+        # any struct variable, taking the whole file with it. See mat_output.
         write_class_scores_mat(
             mat_path, scores, class_names, roi_numbers, class_name_auto, class_name,
-            classifier_name, cell_counts=cell_counts, provenance=provenance,
+            classifier_name, cell_counts=cell_counts,
         )
         written.append(mat_path)
 

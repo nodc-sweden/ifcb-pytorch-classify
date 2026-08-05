@@ -99,3 +99,20 @@ def test_mat_length_mismatch(tmp_path):
     scores = np.array([[0.9, 0.1]])
     with pytest.raises(ValueError, match="ROI numbers"):
         write_class_scores_mat(tmp_path / "bad.mat", scores, ["A", "B"], np.array([1, 2]), ["A"], ["A"], "clf")
+
+
+def test_mat_contains_no_struct_variables(tmp_path):
+    """iRfcb's native reader aborts the whole file on any struct variable, so the
+    .mat must carry only cell/char/numeric arrays. A struct loads back through
+    scipy with a named (kind 'V') dtype — assert none does, including the full
+    field set that a chain-counting run writes."""
+    scores = np.array([[0.9, 0.1], [0.2, 0.8]], dtype=np.float64)
+    out = tmp_path / "s.mat"
+    write_class_scores_mat(
+        out, scores, ["A", "B"], np.array([1, 2]), ["A", "B"], ["A", "B"], "clf",
+        cell_counts=np.array([5, -1], dtype=np.int32),
+    )
+    for name, value in loadmat(out).items():
+        if name.startswith("__"):
+            continue
+        assert value.dtype.names is None, f"{name} is a struct; iRfcb cannot read this file"
