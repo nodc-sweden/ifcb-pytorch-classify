@@ -1,9 +1,15 @@
+from dataclasses import fields
 from datetime import UTC, datetime
 
 import pytest
 import yaml
 
-from ifcb_classify.config import InferConfig, TrainConfig, load_config
+from ifcb_classify.config import (
+    VALID_CHECKPOINT_METRICS,
+    InferConfig,
+    TrainConfig,
+    load_config,
+)
 
 
 def test_load_train_config(tmp_path):
@@ -112,3 +118,21 @@ def test_train_config_negative_image_dims():
 def test_infer_config_zero_batch_size():
     with pytest.raises(ValueError, match="batch_size"):
         InferConfig(batch_size=0)
+
+
+def test_train_config_invalid_checkpoint_metric():
+    with pytest.raises(ValueError, match="checkpoint_metric"):
+        TrainConfig(checkpoint_metric="weighted-f1")
+
+
+def test_valid_checkpoint_metrics_accepted():
+    for metric in VALID_CHECKPOINT_METRICS:
+        assert TrainConfig(checkpoint_metric=metric).checkpoint_metric == metric
+
+
+def test_checkpoint_metrics_match_metrics_result():
+    """The advertised metrics must stay in sync with the scalar MetricsResult fields."""
+    from ifcb_classify.metrics import MetricsResult
+
+    scalar_fields = {f.name for f in fields(MetricsResult) if f.type is float}
+    assert set(VALID_CHECKPOINT_METRICS) == scalar_fields

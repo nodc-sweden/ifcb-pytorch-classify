@@ -26,7 +26,7 @@ New to terms like *epoch*, *learning rate*, or *validation split*? See
 | `image_height` | `224` | Input height the images are resized/padded to. |
 | `mean` | *(unset)* | Dataset pixel mean for normalised transforms; compute with `normalise`. |
 | `std` | *(unset)* | Dataset pixel std for normalised transforms; compute with `normalise`. |
-| `transform` | `dataset_squarepad_augmented` | Preprocessing pipeline (see [`data.datasets`](reference/ifcb_classify/data/datasets.md)). |
+| `transform` | `dataset_squarepad_augmented` | Preprocessing pipeline, named `dataset_{squarepad,fullpad}[_augmented][_normalised]` (8 combinations). `_augmented` adds training-time augmentation; `_normalised` requires `mean`/`std`. See [`data.datasets`](reference/ifcb_classify/data/datasets.md). |
 | `model` | `resnet50` | Architecture (see [Training → Supported models](guides/training.md#supported-models)). |
 | `pretrained` | `true` | Start from ImageNet-pretrained weights (fine-tune) rather than from scratch. `inception_v3_untrained` trains from scratch either way. YAML only. |
 | `lr` | `0.0001` | Learning rate (must be > 0). |
@@ -35,7 +35,7 @@ New to terms like *epoch*, *learning rate*, or *validation split*? See
 | `num_workers` | `0` | Data-loading worker processes (0 = load in the main process). |
 | `seed` | `42` | Random seed for reproducible splits/shuffling. |
 | `output_dir` | `output` | Where checkpoints, metrics, and plots are written. |
-| `checkpoint_metric` | `weighted_f1` | Metric that decides which epoch is kept as `*_best.pt`. |
+| `checkpoint_metric` | `weighted_f1` | Metric that decides which epoch is kept as `*_best.pt`. One of `accuracy`, `precision`, `recall`, `f1` (macro), `weighted_f1` (support-weighted), `auprc`, `auroc`; higher is always better. |
 | `tracker` | `csv` | Experiment tracker: `csv`, `mlflow`, `wandb`, or `none`. |
 | `mlflow_uri` | *(unset)* | MLflow tracking server URI (with `tracker: mlflow`). |
 | `wandb_project` | *(unset)* | Weights & Biases project name (with `tracker: wandb`). |
@@ -70,7 +70,7 @@ sweep_params:
 | `num_workers` | `0` | Data-loading worker processes. |
 | `thresholds_path` | *(auto)* | Per-class thresholds (`.json` from training, or `.yaml`); auto-detected next to the checkpoint. |
 | `threshold_default` | `0.0` | Per-class decision threshold used when no thresholds file is supplied or auto-detected. |
-| `device` | `auto` | `auto`, `cpu`, or `cuda`. |
+| `device` | `auto` | `auto` (prefers CUDA, then Apple MPS, then CPU), `cpu`, `cuda`, or `mps`. |
 | `classifier_name` | *(unset)* | Name recorded in the output metadata. |
 | `overwrite` | `false` | Re-generate bins whose output already exists (`--overwrite`). |
 | `classes_path` | *(auto)* | Class list; auto-detected next to the checkpoint, or supply for legacy checkpoints. |
