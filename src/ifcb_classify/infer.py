@@ -4,7 +4,9 @@
 a trained checkpoint and an input path (a single bin or a directory of bins) it:
 
 1. skips work early if every bin already has an output file (unless ``overwrite``);
-2. loads the model and rebuilds the exact transform used at training time;
+2. loads the model and rebuilds training's *preprocessing* — padding, resize and
+   normalisation — but not its augmentation, which is training-only (see
+   :func:`ifcb_classify.data.datasets.eval_transform_name`);
 3. resolves per-class decision thresholds and, optionally, a chain counter;
 4. runs batched softmax inference over each bin's ROIs; and
 5. writes one class-scores file per bin in each requested output format —
@@ -424,7 +426,7 @@ def _load_thresholds(config: InferConfig, class_names: list[str]) -> np.ndarray:
 
             if thresholds_fitted_on_augmented(path):
                 logger.warning(
-                    "%s has no 'validation_transform' key, which every release that stopped "
+                    "%s records no 'validation_transform', which every release that stopped "
                     "augmenting the validation split writes. It therefore predates that change, "
                     "and its thresholds were fitted against randomly jittered and flipped images, "
                     "so they no longer match this model's operating point. Refit them with "
@@ -432,6 +434,15 @@ def _load_thresholds(config: InferConfig, class_names: list[str]) -> np.ndarray:
                     Path(path).name,
                 )
             return load_thresholds_json(path, class_names)
+        # A YAML thresholds file is a flat class -> value map with nowhere to record
+        # which split it was fitted on, so the check above has no equivalent here.
+        # Say so rather than let its silence read as a clean bill of health.
+        logger.info(
+            "%s is a YAML thresholds file, which carries no record of the split it was fitted on. "
+            "If it predates the de-augmented validation split, its values no longer match this "
+            "model's operating point; scripts/recompute_thresholds.py refits from the checkpoint.",
+            Path(path).name,
+        )
         with open(path) as f:
             data = yaml.safe_load(f)
         return np.array([data.get(c, np.nan) for c in class_names], dtype=np.float64)

@@ -153,6 +153,22 @@ def test_thresholds_without_the_marker_are_treated_as_pre_fix(tmp_path):
     assert thresholds_fitted_on_augmented(legacy) is True
 
 
+def test_null_validation_transform_is_treated_as_pre_fix(tmp_path):
+    """The key defaults to None, so present-but-null must not read as a clean file.
+
+    ``save_thresholds_and_metrics`` writes the key unconditionally and its
+    ``validation_transform`` parameter defaults to ``None``, so a caller that
+    omits it produces ``"validation_transform": null`` — which records nothing
+    about the split and must be treated the same as no key at all.
+    """
+    path = save_thresholds_and_metrics(
+        tmp_path, "run", 1, ["A"], np.array([0.5]),
+        {"A": {"class_name": "A", "threshold": 0.5, "f1": 1.0, "precision": 1.0, "recall": 1.0, "support": 2}},
+    )
+    assert json.loads(path.read_text())["validation_transform"] is None
+    assert thresholds_fitted_on_augmented(path) is True
+
+
 def test_unreadable_thresholds_file_makes_no_claim(tmp_path):
     """This only drives an advisory warning, so a parse failure must not assert."""
     broken = tmp_path / "broken.json"

@@ -26,7 +26,7 @@ New to terms like *epoch*, *learning rate*, or *validation split*? See
 | `image_height` | `224` | Input height the images are resized/padded to. |
 | `mean` | *(unset)* | Dataset pixel mean for normalised transforms; compute with `normalise`. |
 | `std` | *(unset)* | Dataset pixel std for normalised transforms; compute with `normalise`. |
-| `transform` | `dataset_squarepad_augmented` | Preprocessing pipeline, named `dataset_{squarepad,fullpad}[_augmented][_normalised]` (8 combinations). `_augmented` adds training-time augmentation; `_normalised` requires `mean`/`std`. See [`data.datasets`](reference/ifcb_classify/data/datasets.md). |
+| `transform` | `dataset_squarepad_augmented` | Preprocessing pipeline. Names combine a padding strategy (none, `_squarepad`, `_fullpad`, `_reflectpad`) with optional `_augmented` (training-time augmentation, applied to the training split only) and `_normalised` (requires `mean`/`std`). See [`data.datasets`](reference/ifcb_classify/data/datasets.md) for the full list of valid names. |
 | `model` | `resnet50` | Architecture (see [Training → Supported models](guides/training.md#supported-models)). |
 | `pretrained` | `true` | Start from ImageNet-pretrained weights (fine-tune) rather than from scratch. `inception_v3_untrained` trains from scratch either way. YAML only. |
 | `lr` | `0.0001` | Learning rate (must be > 0). |

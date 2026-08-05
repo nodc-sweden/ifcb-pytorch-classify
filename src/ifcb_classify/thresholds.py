@@ -33,12 +33,14 @@ VALIDATION_TRANSFORM_KEY = "validation_transform"
 def thresholds_fitted_on_augmented(path: str | Path) -> bool:
     """Whether a thresholds JSON was fitted against an augmented validation split.
 
-    True when the file has no ``"validation_transform"`` key. Every file written
-    before that split stopped being augmented lacks it, as does any hand-written
-    one, and those thresholds were fitted on randomly jittered and flipped images.
+    True when the file records no ``"validation_transform"``, whether the key is
+    absent or present but null. Every file written before that split stopped
+    being augmented lacks it, as does any hand-written one, and those thresholds
+    were fitted on randomly jittered and flipped images.
 
     This is a check you can run by eye — look for ``"validation_transform"`` in
-    the JSON — which is deliberate, since the file carries no version of its own.
+    the JSON with a transform name against it — which is deliberate, since the
+    file carries no version of its own.
     An unreadable or non-JSON file returns False: this only drives an advisory
     warning, and failing to parse it is not evidence of anything.
     """

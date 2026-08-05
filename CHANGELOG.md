@@ -23,8 +23,10 @@ This file records notable changes to the project. It follows
   `eval_transform_name`, which keeps the preprocessing and drops the random
   operations, and three call sites are fixed:
 
-  - `infer` scores with the de-augmented transform and logs a warning when the
-    checkpoint's name had augmentation in it.
+  - `infer` scores with the de-augmented transform, and logs which transform it
+    substituted when the checkpoint's name had augmentation in it. This is
+    expected of every model trained with the default transform, so it is logged
+    at info level rather than as a warning.
   - The validation split in `create_training_datasets` is no longer augmented.
     Reported validation metrics, the checkpoint-selection metric and the
     per-class thresholds were all measured on randomly jittered and flipped
@@ -62,6 +64,12 @@ This file records notable changes to the project. It follows
   no longer matches, since a changed dataset would refit on images the model
   trained on. No retraining is involved — only the thresholds change.
 
+  It writes the refit somewhere new and prints how far each threshold moved
+  against the values that shipped with the model, so that comparison is what
+  decides whether to install it. Writing back into the checkpoint's own directory
+  replaces the file inference loads by default, so it needs `--in-place` to say
+  so, and the replaced file is copied to `.bak` first.
+
   **Existing checkpoints need their thresholds recomputed.** The thresholds
   shipped alongside a model trained before this release were fitted against the
   augmented validation split, so they no longer match the operating point of the
@@ -69,12 +77,15 @@ This file records notable changes to the project. It follows
   one arbitrary draw and should be reclassified for comparable results.
 
   **To tell whether a thresholds file is affected, look for a
-  `validation_transform` key in it.** This release adds that key, and only
-  releases from this one onward write it, so a file without one was fitted
-  against the augmented split and should be refit. The file records no version of
-  its own, so the key is the check — and it also covers hand-written thresholds
-  files, which a version comparison could not. Inference warns once per run when
-  it loads a file that lacks it.
+  `validation_transform` key with a transform name against it.** This release
+  adds that key, and only releases from this one onward write it, so a file
+  without one was fitted against the augmented split and should be refit. The
+  file records no version of its own, so the key is the check — and it also
+  covers hand-written thresholds files, which a version comparison could not.
+  Inference warns once per run when it loads a JSON thresholds file that records
+  no `validation_transform`. A YAML thresholds file is a flat class-to-value map
+  with nowhere to record the split it was fitted on, so it gets an informational
+  note instead: its silence is not evidence either way.
 
 ## [0.3.0] - 2026-08-03
 
