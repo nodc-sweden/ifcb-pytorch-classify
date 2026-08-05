@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 
 from ifcb_classify.checkpoint import CheckpointManager
 from ifcb_classify.config import TrainConfig, config_to_dict
-from ifcb_classify.data.datasets import create_training_datasets
+from ifcb_classify.data.datasets import create_training_datasets, eval_transform_name
 from ifcb_classify.device import get_device
 from ifcb_classify.metrics import MetricsCalculator
 from ifcb_classify.models.factory import get_model
@@ -191,7 +191,10 @@ def _run_training_loop(
         if saved:
             logger.info("Computing per-class optimal thresholds...")
             thresholds, class_metrics = compute_optimal_thresholds(model, val_loader, device, class_names)
-            save_thresholds_and_metrics(config.output_dir, run_name, epoch, class_names, thresholds, class_metrics)
+            save_thresholds_and_metrics(
+                config.output_dir, run_name, epoch, class_names, thresholds, class_metrics,
+                validation_transform=eval_transform_name(config.transform),
+            )
             best_class_metrics = class_metrics
             best_confusion_matrix = results.confusion_matrix.numpy()
 

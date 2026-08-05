@@ -26,7 +26,7 @@ import yaml
 
 from ifcb_classify.checkpoint import load_checkpoint
 from ifcb_classify.config import InferConfig
-from ifcb_classify.data.datasets import build_transform
+from ifcb_classify.data.datasets import build_transform, eval_transform_name
 from ifcb_classify.data.ifcb_bin import find_headerless_bins, get_bin_lid, iter_bin_images, iter_directory_bins
 from ifcb_classify.device import get_device
 from ifcb_classify.hdf5_output import resolve_class_names, write_class_scores
@@ -83,8 +83,21 @@ def infer_main(config: InferConfig) -> None:
     model.to(device)
     model.eval()
 
+    # Rebuild training's preprocessing but never its augmentation: the random ops
+    # would make each ROI's score one draw, so the same bin scores differently
+    # depending on the RNG position — which bin ran first, which torchvision is
+    # installed. See eval_transform_name.
+    transform_name = eval_transform_name(train_config["transform"])
+    if transform_name != train_config["transform"]:
+        # Expected for every model trained with the default transform, so this is
+        # routine rather than an anomaly. Whether the *thresholds* also predate
+        # the fix is a separate question, answered by _load_thresholds.
+        logger.info(
+            "Checkpoint was trained with '%s'; scoring with '%s' (augmentation is training-only).",
+            train_config["transform"], transform_name,
+        )
     transform = build_transform(
-        train_config["transform"],
+        transform_name,
         train_config["image_width"],
         train_config["image_height"],
         train_config.get("mean"),
@@ -401,7 +414,17 @@ def _load_thresholds(config: InferConfig, class_names: list[str]) -> np.ndarray:
 
     if path:
         if path.endswith(".json"):
-            from ifcb_classify.thresholds import load_thresholds_json
+            from ifcb_classify.thresholds import load_thresholds_json, thresholds_fitted_on_augmented
+
+            if thresholds_fitted_on_augmented(path):
+                logger.warning(
+                    "%s has no 'validation_transform' key, which every release that stopped "
+                    "augmenting the validation split writes. It therefore predates that change, "
+                    "and its thresholds were fitted against randomly jittered and flipped images, "
+                    "so they no longer match this model's operating point. Refit them with "
+                    "scripts/recompute_thresholds.py, or pass --thresholds to select another file.",
+                    Path(path).name,
+                )
             return load_thresholds_json(path, class_names)
         with open(path) as f:
             data = yaml.safe_load(f)

@@ -62,6 +62,13 @@ transforms, adds random flips and brightness/contrast jitter that make the
 model more robust. This project's transform names are listed in
 [`data.datasets`](reference/ifcb_classify/data/datasets.md).
 
+The random part belongs to training only. Anywhere images are *scored* rather
+than trained on — inference, the validation split, dataset statistics — the name
+is mapped to its augmentation-free counterpart first, so a result depends only
+on the image. Applying the random operations while scoring would make every
+prediction one draw of many, and the same image would classify differently from
+one run to the next.
+
 **Augmentation**: deliberately varying training images (random horizontal and
 vertical flips, plus brightness/contrast jitter) so the model doesn't overfit to
 exact pixel positions.

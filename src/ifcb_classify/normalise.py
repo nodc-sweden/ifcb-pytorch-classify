@@ -9,7 +9,7 @@ non-normalised version of the chosen transform.
 import torch
 from torchvision import datasets
 
-from ifcb_classify.data.datasets import build_transform
+from ifcb_classify.data.datasets import build_transform, eval_transform_name
 
 
 def compute_dataset_stats(
@@ -24,9 +24,15 @@ def compute_dataset_stats(
     Uses Welford's online algorithm to compute mean and variance in a single
     pass, avoiding the need to iterate the dataset twice.
 
-    Uses a non-normalised transform variant (strips _normalised suffix if present).
+    Measures the images as they are scored: the ``_normalised`` suffix is stripped
+    (these stats are what normalisation needs, so it cannot already be applied)
+    and any augmentation is dropped. The augmented pipelines normalise *after*
+    jittering, so augmented stats would whiten training inputs more exactly — but
+    the same stored ``mean``/``std`` are reused at inference, where no jitter
+    runs, so clean stats keep training and inference consistent and make the
+    numbers a property of the dataset rather than of the RNG.
     """
-    base_name = transform_name.replace("_normalised", "")
+    base_name = eval_transform_name(transform_name).replace("_normalised", "")
     transform = build_transform(base_name, width, height)
     dataset = datasets.ImageFolder(data_dir, transform=transform)
     loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0)

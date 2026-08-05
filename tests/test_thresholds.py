@@ -5,7 +5,12 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from ifcb_classify.thresholds import compute_optimal_thresholds, load_thresholds_json, save_thresholds_and_metrics
+from ifcb_classify.thresholds import (
+    compute_optimal_thresholds,
+    load_thresholds_json,
+    save_thresholds_and_metrics,
+    thresholds_fitted_on_augmented,
+)
 
 
 def test_save_thresholds_and_metrics(tmp_path):
@@ -126,3 +131,31 @@ def test_load_thresholds_json_partial(tmp_path):
     assert thresholds[0] == 0.5
     assert np.isnan(thresholds[1])
     assert np.isnan(thresholds[2])
+
+
+def test_saved_thresholds_record_the_validation_transform(tmp_path):
+    path = save_thresholds_and_metrics(
+        tmp_path, "run", 1, ["A"], np.array([0.5]),
+        {"A": {"class_name": "A", "threshold": 0.5, "f1": 1.0, "precision": 1.0, "recall": 1.0, "support": 2}},
+        validation_transform="dataset_squarepad",
+    )
+    assert json.loads(path.read_text())["validation_transform"] == "dataset_squarepad"
+    assert thresholds_fitted_on_augmented(path) is False
+
+
+def test_thresholds_without_the_marker_are_treated_as_pre_fix(tmp_path):
+    """Files written before the validation split was de-augmented lack the key."""
+    legacy = tmp_path / "thresholds.json"
+    legacy.write_text(json.dumps({
+        "model_name": "old",
+        "class_metrics": {"A": {"class_name": "A", "threshold": 0.4, "f1": 1.0, "support": 2}},
+    }))
+    assert thresholds_fitted_on_augmented(legacy) is True
+
+
+def test_unreadable_thresholds_file_makes_no_claim(tmp_path):
+    """This only drives an advisory warning, so a parse failure must not assert."""
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json")
+    assert thresholds_fitted_on_augmented(broken) is False
+    assert thresholds_fitted_on_augmented(tmp_path / "missing.json") is False

@@ -20,6 +20,34 @@ from sklearn.metrics import f1_score, precision_recall_curve, precision_score, r
 
 logger = logging.getLogger(__name__)
 
+# Key recording which transform the validation split was read through. It was
+# introduced by the same change that stopped augmenting that split (see the
+# CHANGELOG entry "Inference no longer applies the training augmentation"), so
+# its presence is what dates a thresholds file: written by that release or later
+# if it is there, earlier if it is not. Nothing else in the file distinguishes
+# the two, which is why the key exists rather than a version comparison — a
+# thresholds JSON records no version, and a hand-written one never did.
+VALIDATION_TRANSFORM_KEY = "validation_transform"
+
+
+def thresholds_fitted_on_augmented(path: str | Path) -> bool:
+    """Whether a thresholds JSON was fitted against an augmented validation split.
+
+    True when the file has no ``"validation_transform"`` key. Every file written
+    before that split stopped being augmented lacks it, as does any hand-written
+    one, and those thresholds were fitted on randomly jittered and flipped images.
+
+    This is a check you can run by eye — look for ``"validation_transform"`` in
+    the JSON — which is deliberate, since the file carries no version of its own.
+    An unreadable or non-JSON file returns False: this only drives an advisory
+    warning, and failing to parse it is not evidence of anything.
+    """
+    try:
+        with open(path) as f:
+            return json.load(f).get(VALIDATION_TRANSFORM_KEY) is None
+    except (OSError, json.JSONDecodeError):
+        return False
+
 
 def compute_optimal_thresholds(
     model: torch.nn.Module,
@@ -79,8 +107,16 @@ def save_thresholds_and_metrics(
     class_names: list[str],
     thresholds: np.ndarray,
     class_metrics: dict,
+    validation_transform: str | None = None,
 ) -> Path:
-    """Save per-class thresholds, metrics JSON, and classes.txt."""
+    """Save per-class thresholds, metrics JSON, and classes.txt.
+
+    ``validation_transform`` records which transform the validation split was read
+    through, and dates the file: only releases that stopped augmenting that split
+    write it. Its absence is what marks thresholds fitted against randomly
+    jittered and flipped images — see :data:`VALIDATION_TRANSFORM_KEY` and
+    :func:`thresholds_fitted_on_augmented`.
+    """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -88,6 +124,7 @@ def save_thresholds_and_metrics(
         "model_name": run_name,
         "best_epoch": best_epoch,
         "num_classes": len(class_names),
+        VALIDATION_TRANSFORM_KEY: validation_transform,
         "class_metrics": class_metrics,
         "macro_F1": float(np.mean([m["f1"] for m in class_metrics.values()])),
         "weighted_F1": float(np.average(
