@@ -27,8 +27,17 @@ site/
 
 # Data (tracked separately or too large for git)
 /training_data/
-/test_data/
+/test_data/*
 /data/
+
+# ...except the small, real iRfcb chain-count fixture, which is committed so the
+# fixture is self-contained (see test_data/irfcb_cell_counts/README.md). Whitelist
+# the dir, then re-ignore all but the fixture files it must carry.
+!/test_data/irfcb_cell_counts/
+/test_data/irfcb_cell_counts/*
+!/test_data/irfcb_cell_counts/*.h5
+!/test_data/irfcb_cell_counts/*.mat
+!/test_data/irfcb_cell_counts/README.md
 
 # Jupyter
 .ipynb_checkpoints/
