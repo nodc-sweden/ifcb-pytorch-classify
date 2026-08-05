@@ -132,12 +132,23 @@ def test_mat_without_provenance_gains_no_variable(tmp_path):
     assert "provenance" not in loadmat(out)
 
 
-def test_version_comes_from_the_running_code_not_the_install(tmp_path):
-    """importlib.metadata reports the install-time version and goes stale.
+def test_version_comes_from_installed_metadata():
+    """pyproject.toml is the single source; this reads it back via the install."""
+    from importlib.metadata import version
 
-    An editable checkout whose last `pip install` predates a version bump would
-    otherwise stamp the old number into every output file.
-    """
-    import ifcb_classify
+    assert build_provenance("dataset_squarepad", "resnet50")["ifcb_classify_version"] == version("ifcb-classify")
 
-    assert build_provenance("dataset_squarepad", "resnet50")["ifcb_classify_version"] == ifcb_classify.__version__
+
+def test_uninstalled_package_records_unknown(monkeypatch):
+    """Running from a bare checkout must still produce a usable record."""
+    from importlib.metadata import PackageNotFoundError
+
+    import ifcb_classify.provenance as mod
+
+    def missing(_name):
+        raise PackageNotFoundError
+
+    monkeypatch.setattr(mod, "version", missing)
+    p = mod.build_provenance("dataset_squarepad", "resnet50")
+    assert p["ifcb_classify_version"] == "unknown"
+    assert p["torch_version"]

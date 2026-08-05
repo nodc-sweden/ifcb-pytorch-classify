@@ -1,6 +1,6 @@
 [project]
 name = "ifcb-classify"
-dynamic = ["version"]
+version = "0.3.0"
 description = "Pipeline for IFCB image classification using PyTorch"
 requires-python = ">=3.11,<3.15"
 dependencies = [
@@ -45,11 +45,6 @@ ifcb-classify = "ifcb_classify.__main__:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-# The version lives in src/ifcb_classify/__init__.py so one value serves both the
-# package metadata and the provenance recorded in every output file.
-[tool.hatch.version]
-path = "src/ifcb_classify/__init__.py"
 
 [tool.hatch.metadata]
 allow-direct-references = true

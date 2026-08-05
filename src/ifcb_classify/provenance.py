@@ -20,6 +20,7 @@ run differs.
 import hashlib
 import logging
 import platform
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -62,16 +63,19 @@ def build_provenance(
 
 
 def _package_version() -> str:
-    """The version of the code that is running.
+    """The installed ifcb-classify version, or ``"unknown"`` if it isn't installed.
 
-    Read from the package rather than via ``importlib.metadata``, which reports
-    what was *installed*: in an editable checkout that is whatever version the
-    last ``pip install`` saw, so it silently goes stale and would stamp a wrong
-    number into every output file.
+    This is the *installed* version, read from distribution metadata, and the
+    version declared in ``pyproject.toml`` is its single source. One caveat worth
+    knowing when reading a provenance record: an editable checkout keeps whatever
+    version its last ``pip install -e .`` saw, so bumping the version without
+    reinstalling leaves this field reporting the older number. Reinstall after
+    pulling — the checkpoint hash and library versions are unaffected either way.
     """
-    from ifcb_classify import __version__
-
-    return __version__
+    try:
+        return version("ifcb-classify")
+    except PackageNotFoundError:
+        return "unknown"
 
 
 def checkpoint_sha256(path: str | Path) -> str | None:
