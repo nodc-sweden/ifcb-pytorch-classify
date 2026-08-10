@@ -8,8 +8,8 @@ authors:
     given-names: Anders
     affiliation: "Swedish Meteorological and Hydrological Institute (SMHI)"
     orcid: "https://orcid.org/0000-0002-8283-656X"
-version: "0.3.0"
-date-released: "2026-08-03"
+version: "0.4.0"
+date-released: "2026-08-10"
 # Concept DOI: resolves to the most recent release, so it needs no edit per version.
 doi: "10.5281/zenodo.21775252"
 license: MIT
