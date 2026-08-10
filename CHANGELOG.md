@@ -4,6 +4,89 @@ This file records notable changes to the project. It follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Inference no longer applies the training augmentation. A transform name bundles
+  preprocessing (padding, resize, normalisation) with augmentation (random flips
+  and brightness/contrast jitter), and everything that scored images rebuilt the
+  whole bundle from the checkpoint's `transform`. With an `_augmented` checkpoint
+  that made every score a single random draw: because one transform is built per
+  run and the RNG advances across ROIs, the same bin scored differently depending
+  on which bins preceded it, on the torchvision version, and on anything else
+  that shifted the stream. Re-running the *same* command stayed reproducible,
+  because inference reseeds on every invocation; it was runs that differed in
+  where the bin sat, or in the installed libraries, that diverged. Two such runs
+  of one real bin, with identical weights, disagreed on 49 of 712 classifications
+  and moved the sample's cell count by about 1%. Scoring now goes through
+  `eval_transform_name`, which keeps the preprocessing and drops the random
+  operations, and three call sites are fixed:
+
+  - `infer` scores with the de-augmented transform, and logs which transform it
+    substituted when the checkpoint's name had augmentation in it. This is
+    expected of every model trained with the default transform, so it is logged
+    at info level rather than as a warning.
+  - The validation split in `create_training_datasets` is no longer augmented.
+    Reported validation metrics, the checkpoint-selection metric and the
+    per-class thresholds were all measured on randomly jittered and flipped
+    images.
+  - `normalise` computes dataset mean and standard deviation without
+    augmentation, so brightness and contrast jitter no longer inflate them.
+
+### Added
+
+- The `h5` class-scores output now records what produced it: root attributes
+  carrying the `ifcb-classify`, Python, torch and torchvision versions, the
+  transform actually applied, the model architecture, and the checkpoint's
+  SHA256.
+
+  Until now the only provenance was `classifier_name`, derived from the
+  checkpoint's *parent directory name* — so the same weights in two differently
+  named folders produced differently labelled outputs, and nothing recorded the
+  code or libraries involved. Given two files that disagreed, neither said why.
+
+  HDF5 readers ignore unknown attributes, so this is additive there. No timestamp
+  is recorded, so two identical runs still produce comparable files. The `mat`,
+  `csv` and `csv-labels` outputs are unchanged: the `mat` is an interchange
+  format for iRfcb and the Dashboard whose native reader aborts the whole file on
+  any variable it cannot represent (a struct among them), so provenance stays in
+  the `h5`; the csv column layouts are a contract with iRfcb and ClassiPyR.
+
+  Note that `ifcb_classify_version` is the *installed* version. An editable
+  checkout keeps whatever its last `pip install -e .` saw, so run that after
+  pulling or the recorded version lags behind the code. The checkpoint hash and
+  library versions are unaffected.
+
+- `scripts/recompute_thresholds.py`, which refits an existing checkpoint's
+  per-class thresholds against a de-augmented validation split. It reconstructs
+  the split from the checkpoint's own config and refuses to run if the class list
+  no longer matches, since a changed dataset would refit on images the model
+  trained on. No retraining is involved — only the thresholds change.
+
+  It writes the refit somewhere new and prints how far each threshold moved
+  against the values that shipped with the model, so that comparison is what
+  decides whether to install it. Writing back into the checkpoint's own directory
+  replaces the file inference loads by default, so it needs `--in-place` to say
+  so, and the replaced file is copied to `.bak` first.
+
+  **Existing checkpoints need their thresholds recomputed.** The thresholds
+  shipped alongside a model trained before this release were fitted against the
+  augmented validation split, so they no longer match the operating point of the
+  de-augmented model. Bins classified with an `_augmented` checkpoint each hold
+  one arbitrary draw and should be reclassified for comparable results.
+
+  **To tell whether a thresholds file is affected, look for a
+  `validation_transform` key with a transform name against it.** This release
+  adds that key, and only releases from this one onward write it, so a file
+  without one was fitted against the augmented split and should be refit. The
+  file records no version of its own, so the key is the check — and it also
+  covers hand-written thresholds files, which a version comparison could not.
+  Inference warns once per run when it loads a JSON thresholds file that records
+  no `validation_transform`. A YAML thresholds file is a flat class-to-value map
+  with nowhere to record the split it was fitted on, so it gets an informational
+  note instead: its silence is not evidence either way.
+
 ## [0.3.0] - 2026-08-03
 
 ### Added
@@ -164,6 +247,7 @@ when you upgrade, since pyifcb is no longer a dependency.
 - Experiment tracking through CSV (the default), MLflow or Weights & Biases.
 - Automatic device selection: GPU for training, CPU by default for inference.
 
+[Unreleased]: https://github.com/nodc-sweden/ifcb-pytorch-classify/compare/v0.3.0...HEAD
 [0.3.0]: https://github.com/nodc-sweden/ifcb-pytorch-classify/compare/v.0.2.0...v0.3.0
 [0.2.0]: https://github.com/nodc-sweden/ifcb-pytorch-classify/compare/v0.1.0...v.0.2.0
 [0.1.0]: https://github.com/nodc-sweden/ifcb-pytorch-classify/releases/tag/v0.1.0

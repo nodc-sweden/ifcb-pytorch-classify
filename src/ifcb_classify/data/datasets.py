@@ -13,6 +13,7 @@ Two things live here:
   filtering out rare classes via :func:`filter_classes`.
 """
 
+import copy
 import logging
 import os
 import shutil
@@ -46,6 +47,29 @@ _AUGMENTATION = [
     transforms.RandomHorizontalFlip(),
     transforms.RandomVerticalFlip(),
 ]
+
+# A transform name bundles two things that behave differently outside training:
+# preprocessing (padding, resize, normalisation), which must match what the model
+# was trained on, and augmentation, which must not run at all. This maps each
+# augmented name onto the variant that keeps the former and drops the latter.
+_EVAL_TRANSFORM_NAMES = {
+    "dataset_squarepad_augmented": "dataset_squarepad",
+    "dataset_fullpad_augmented": "dataset_fullpad",
+    "dataset_squarepad_augmented_normalised": "dataset_squarepad_normalised",
+    "dataset_fullpad_augmented_normalised": "dataset_fullpad_normalised",
+}
+
+
+def eval_transform_name(name: str) -> str:
+    """Return the augmentation-free counterpart of transform ``name``.
+
+    Names that carry no augmentation pass through unchanged. Use this wherever
+    images are *scored* rather than trained on — inference, the validation split,
+    dataset statistics — so the result depends only on the image and not on the
+    global RNG. Feeding an ``_augmented`` name straight to :func:`build_transform`
+    outside training makes every result a single random draw.
+    """
+    return _EVAL_TRANSFORM_NAMES.get(name, name)
 
 
 def _make_mean_std(mean: float, std: float) -> tuple[list[float], list[float]]:
@@ -216,19 +240,41 @@ def create_training_datasets(
     :func:`filter_classes`). The split is deterministic given ``seed``. Returns a
     dict with ``train`` / ``val`` (``Subset``s), ``class_names`` and
     ``num_classes``.
+
+    Augmentation is applied to the training split only. The validation split is
+    what the reported metrics, the checkpoint-selection metric and the per-class
+    thresholds are all computed from, so it is read through
+    :func:`eval_transform_name` — measuring those on randomly jittered and
+    flipped images would make them a matter of the RNG.
     """
     effective_dir = data_dir
     if min_class_images is not None:
         effective_dir, _ = filter_classes(data_dir, min_class_images, manual_include_classes)
 
-    transform = build_transform(transform_name, width, height, mean, std)
-    dataset = datasets.ImageFolder(effective_dir, transform=transform)
-    train_idx, val_idx = train_test_split(list(range(len(dataset))), test_size=val_split, random_state=seed)
+    train_dataset = datasets.ImageFolder(
+        effective_dir, transform=build_transform(transform_name, width, height, mean, std)
+    )
+
+    # A shallow copy sharing the same ``samples`` list, differing only in the
+    # transform. Scanning the directory a second time would enumerate the same
+    # files today, but nothing would enforce that: a tree mutated between the two
+    # scans shifts what val_idx addresses and mislabels the split silently. This
+    # way one index list provably addresses one ordering — and a 660k-image
+    # dataset is neither walked nor its path list duplicated per worker.
+    eval_name = eval_transform_name(transform_name)
+    val_dataset = copy.copy(train_dataset)
+    val_dataset.transform = build_transform(eval_name, width, height, mean, std)
+    # ``__getitem__`` reads ``.transform``; ``.transforms`` is the paired wrapper
+    # VisionDataset keeps alongside it. Rebuild it from its own class rather than
+    # importing the type, and a stale copy of the training transform cannot linger.
+    val_dataset.transforms = type(train_dataset.transforms)(val_dataset.transform, val_dataset.target_transform)
+
+    train_idx, val_idx = train_test_split(list(range(len(train_dataset))), test_size=val_split, random_state=seed)
     return {
-        "train": torch.utils.data.Subset(dataset, train_idx),
-        "val": torch.utils.data.Subset(dataset, val_idx),
-        "class_names": dataset.classes,
-        "num_classes": len(dataset.classes),
+        "train": torch.utils.data.Subset(train_dataset, train_idx),
+        "val": torch.utils.data.Subset(val_dataset, val_idx),
+        "class_names": train_dataset.classes,
+        "num_classes": len(train_dataset.classes),
     }
 
 

@@ -22,3 +22,16 @@ def test_compute_dataset_stats_fullpad(tmp_path):
     mean, std = compute_dataset_stats(str(data_dir), transform_name="dataset_fullpad", width=32, height=32)
     assert 0.0 <= mean <= 1.0
     assert 0.0 < std <= 1.0
+
+
+def test_compute_dataset_stats_ignores_augmentation(tmp_path):
+    """Stats feed the _normalised transforms, so jitter must not perturb them."""
+    data_dir = tmp_path / "training_data"
+    shutil.copytree(FIXTURES, data_dir)
+
+    first = compute_dataset_stats(str(data_dir), transform_name="dataset_squarepad_augmented", width=32, height=32)
+    second = compute_dataset_stats(str(data_dir), transform_name="dataset_squarepad_augmented", width=32, height=32)
+    assert first == second
+
+    plain = compute_dataset_stats(str(data_dir), transform_name="dataset_squarepad", width=32, height=32)
+    assert first == plain

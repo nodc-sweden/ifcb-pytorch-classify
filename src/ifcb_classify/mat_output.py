@@ -18,6 +18,18 @@ Dashboard (via pyifcb's v1 reader) and processable by
 When chain counting ran, a per-ROI ``cell_count`` field (int32, ``-1`` where not
 counted) is also written, mirroring the HDF5 output's ``cell_count`` dataset, so
 iRfcb's ``ifcb_summarize_cell_counts`` can read chain counts from the ``.mat`` too.
+
+This writer deliberately stays to that lean field set. Provenance (see
+:mod:`ifcb_classify.provenance`) and the chain-counter metadata are recorded in
+the HDF5 output, which is the canonical, richer format; they are *not* mirrored
+here. The reason is not stylistic: iRfcb's native (pure-R) ``.mat`` reader
+validates every variable in the file and aborts the whole read on any type it
+cannot represent — a MATLAB struct among them — so a single ``struct`` variable
+makes even ``class2useTB`` and ``cell_count`` unreadable. Only cell arrays of
+strings, character arrays and numeric arrays survive that reader, which is
+exactly what the fields above are. The ``.mat`` is an interchange format for
+iRfcb and the Dashboard; keeping its variables to what those tools read is what
+keeps it readable.
 """
 
 from pathlib import Path

@@ -4,7 +4,9 @@
 a trained checkpoint and an input path (a single bin or a directory of bins) it:
 
 1. skips work early if every bin already has an output file (unless ``overwrite``);
-2. loads the model and rebuilds the exact transform used at training time;
+2. loads the model and rebuilds training's *preprocessing* — padding, resize and
+   normalisation — but not its augmentation, which is training-only (see
+   :func:`ifcb_classify.data.datasets.eval_transform_name`);
 3. resolves per-class decision thresholds and, optionally, a chain counter;
 4. runs batched softmax inference over each bin's ROIs; and
 5. writes one class-scores file per bin in each requested output format —
@@ -26,11 +28,12 @@ import yaml
 
 from ifcb_classify.checkpoint import load_checkpoint
 from ifcb_classify.config import InferConfig
-from ifcb_classify.data.datasets import build_transform
+from ifcb_classify.data.datasets import build_transform, eval_transform_name
 from ifcb_classify.data.ifcb_bin import find_headerless_bins, get_bin_lid, iter_bin_images, iter_directory_bins
 from ifcb_classify.device import get_device
 from ifcb_classify.hdf5_output import resolve_class_names, write_class_scores
 from ifcb_classify.models.factory import get_model
+from ifcb_classify.provenance import build_provenance
 from ifcb_classify.seed import set_seed
 
 logger = logging.getLogger(__name__)
@@ -83,8 +86,21 @@ def infer_main(config: InferConfig) -> None:
     model.to(device)
     model.eval()
 
+    # Rebuild training's preprocessing but never its augmentation: the random ops
+    # would make each ROI's score one draw, so the same bin scores differently
+    # depending on the RNG position — which bin ran first, which torchvision is
+    # installed. See eval_transform_name.
+    transform_name = eval_transform_name(train_config["transform"])
+    if transform_name != train_config["transform"]:
+        # Expected for every model trained with the default transform, so this is
+        # routine rather than an anomaly. Whether the *thresholds* also predate
+        # the fix is a separate question, answered by _load_thresholds.
+        logger.info(
+            "Checkpoint was trained with '%s'; scoring with '%s' (augmentation is training-only).",
+            train_config["transform"], transform_name,
+        )
     transform = build_transform(
-        train_config["transform"],
+        transform_name,
         train_config["image_width"],
         train_config["image_height"],
         train_config.get("mean"),
@@ -93,6 +109,9 @@ def infer_main(config: InferConfig) -> None:
 
     thresholds = _load_thresholds(config, class_names)
     classifier_name = config.classifier_name or _derive_classifier_name(config, train_config)
+    # classifier_name comes from the checkpoint's parent directory, so it says
+    # nothing reliable about what actually ran. This does.
+    provenance = build_provenance(transform_name, train_config["model"], config.model_checkpoint)
     counter = _build_chain_counter(config)
     formats = config.resolved_formats()
     logger.info("Writing output format(s): %s", ", ".join(formats))
@@ -100,9 +119,9 @@ def infer_main(config: InferConfig) -> None:
         logger.warning("Chain counting is enabled but none of 'h5', 'mat', 'csv-labels' is an output format; cell counts are only stored in those formats, so no counts will be written.")
 
     if input_path.is_file():
-        _classify_bin_file(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, formats, counter)
+        _classify_bin_file(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, formats, counter, provenance)
     elif input_path.is_dir():
-        _classify_directory(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, formats, counter)
+        _classify_directory(input_path, model, transform, device, config.batch_size, class_names, thresholds, classifier_name, output_dir, config.overwrite, formats, counter, provenance)
     else:
         raise FileNotFoundError(f"Input path not found: {input_path}")
 
@@ -188,7 +207,7 @@ def _bin_outputs_complete(output_dir: Path, lid: str, formats: tuple[str, ...]) 
 
 
 def _classify_bin_file(
-    bin_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, formats, counter=None
+    bin_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, formats, counter=None, provenance=None
 ):
     """Classify a single bin file and write its class-scores output(s).
 
@@ -222,11 +241,11 @@ def _classify_bin_file(
         return
 
     scores = _batch_predict(model, images, device, batch_size)
-    _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter, raw_images)
+    _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter, raw_images, provenance)
 
 
 def _classify_directory(
-    dir_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, formats, counter=None
+    dir_path, model, transform, device, batch_size, class_names, thresholds, classifier_name, output_dir, overwrite, formats, counter=None, provenance=None
 ):
     """Classify every bin in a directory, skipping ones already classified.
 
@@ -256,7 +275,7 @@ def _classify_directory(
             continue
 
         scores = _batch_predict(model, images, device, batch_size)
-        _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter, raw_images)
+        _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter, raw_images, provenance)
 
 
 def _batch_predict(model, images, device, batch_size):
@@ -275,7 +294,7 @@ def _batch_predict(model, images, device, batch_size):
     return np.concatenate(all_scores, axis=0)
 
 
-def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter=None, raw_images=None):
+def _write_output(output_dir, lid, scores, class_names, target_numbers, classifier_name, thresholds, formats, overwrite, counter=None, raw_images=None, provenance=None):
     """Write the requested class-scores file(s) for a bin.
 
     ``formats`` is any subset of ``("h5", "csv", "mat", "csv-labels")``. A bin is
@@ -315,7 +334,7 @@ def _write_output(output_dir, lid, scores, class_names, target_numbers, classifi
     if h5_path is not None:
         write_class_scores(
             h5_path, scores, class_names, roi_numbers, classifier_name, thresholds,
-            cell_counts=cell_counts, cell_counter_models=models_meta,
+            cell_counts=cell_counts, cell_counter_models=models_meta, provenance=provenance,
         )
         written.append(h5_path)
 
@@ -328,6 +347,8 @@ def _write_output(output_dir, lid, scores, class_names, target_numbers, classifi
     if mat_path is not None:
         from ifcb_classify.mat_output import write_class_scores_mat
 
+        # The .mat deliberately omits provenance: iRfcb's native reader aborts on
+        # any struct variable, taking the whole file with it. See mat_output.
         write_class_scores_mat(
             mat_path, scores, class_names, roi_numbers, class_name_auto, class_name,
             classifier_name, cell_counts=cell_counts,
@@ -401,8 +422,27 @@ def _load_thresholds(config: InferConfig, class_names: list[str]) -> np.ndarray:
 
     if path:
         if path.endswith(".json"):
-            from ifcb_classify.thresholds import load_thresholds_json
+            from ifcb_classify.thresholds import load_thresholds_json, thresholds_fitted_on_augmented
+
+            if thresholds_fitted_on_augmented(path):
+                logger.warning(
+                    "%s records no 'validation_transform', which every release that stopped "
+                    "augmenting the validation split writes. It therefore predates that change, "
+                    "and its thresholds were fitted against randomly jittered and flipped images, "
+                    "so they no longer match this model's operating point. Refit them with "
+                    "scripts/recompute_thresholds.py, or pass --thresholds to select another file.",
+                    Path(path).name,
+                )
             return load_thresholds_json(path, class_names)
+        # A YAML thresholds file is a flat class -> value map with nowhere to record
+        # which split it was fitted on, so the check above has no equivalent here.
+        # Say so rather than let its silence read as a clean bill of health.
+        logger.info(
+            "%s is a YAML thresholds file, which carries no record of the split it was fitted on. "
+            "If it predates the de-augmented validation split, its values no longer match this "
+            "model's operating point; scripts/recompute_thresholds.py refits from the checkpoint.",
+            Path(path).name,
+        )
         with open(path) as f:
             data = yaml.safe_load(f)
         return np.array([data.get(c, np.nan) for c in class_names], dtype=np.float64)

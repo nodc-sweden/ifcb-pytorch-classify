@@ -31,6 +31,19 @@ def _expand_date_placeholders(value: str) -> str:
     return value
 
 
+# Scalar fields of ``metrics.MetricsResult`` that a checkpoint can be selected on.
+# Kept in sync with that dataclass by hand to avoid importing torch at config load.
+VALID_CHECKPOINT_METRICS = (
+    "accuracy",
+    "precision",
+    "recall",
+    "f1",
+    "weighted_f1",
+    "auprc",
+    "auroc",
+)
+
+
 @dataclass(frozen=True)
 class TrainConfig:
     """Validated settings for a training run (see ``configs/train_default.yaml``).
@@ -79,6 +92,11 @@ class TrainConfig:
             raise ValueError(f"epochs must be >= 1, got {self.epochs}")
         if self.image_width < 1 or self.image_height < 1:
             raise ValueError(f"image dimensions must be positive, got {self.image_width}x{self.image_height}")
+        if self.checkpoint_metric not in VALID_CHECKPOINT_METRICS:
+            valid = ", ".join(VALID_CHECKPOINT_METRICS)
+            raise ValueError(
+                f"checkpoint_metric must be one of: {valid}; got {self.checkpoint_metric!r}"
+            )
 
 
 VALID_OUTPUT_FORMATS = ("h5", "csv", "mat", "csv-labels")

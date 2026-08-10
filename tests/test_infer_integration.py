@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import h5py
@@ -16,6 +17,7 @@ from ifcb_classify.infer import (
     _has_pending_bins,
     _load_thresholds,
 )
+from ifcb_classify.provenance import checkpoint_sha256
 from ifcb_classify.train import train_main
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -47,6 +49,39 @@ def test_load_thresholds_default():
     config = InferConfig(model_checkpoint="nonexistent/best.pt", threshold_default=0.5)
     thresholds = _load_thresholds(config, ["A", "B", "C"])
     np.testing.assert_array_equal(thresholds, [0.5, 0.5, 0.5])
+
+
+def test_pre_fix_json_thresholds_warn(tmp_path, caplog):
+    """A JSON file recording no validation_transform was fitted on augmented images."""
+    import json
+
+    path = tmp_path / "old_thresholds_and_metrics.json"
+    path.write_text(json.dumps({"class_metrics": {"A": {"threshold": 0.4}, "B": {"threshold": 0.6}}}))
+    config = InferConfig(model_checkpoint="m/best.pt", thresholds_path=str(path))
+
+    with caplog.at_level("WARNING"):
+        thresholds = _load_thresholds(config, ["A", "B"])
+
+    np.testing.assert_array_equal(thresholds, [0.4, 0.6])
+    assert "validation_transform" in caplog.text
+    assert "recompute_thresholds.py" in caplog.text
+
+
+def test_yaml_thresholds_say_they_cannot_be_dated(tmp_path, caplog):
+    """A YAML file has nowhere to record its split, so its silence proves nothing.
+
+    The JSON check above has no equivalent here; saying so is what keeps a YAML
+    file's lack of a warning from reading as a clean bill of health.
+    """
+    path = tmp_path / "thresholds.yaml"
+    path.write_text("A: 0.4\nB: 0.6\n")
+    config = InferConfig(model_checkpoint="m/best.pt", thresholds_path=str(path))
+
+    with caplog.at_level("INFO"):
+        thresholds = _load_thresholds(config, ["A", "B"])
+
+    np.testing.assert_array_equal(thresholds, [0.4, 0.6])
+    assert "no record of the split it was fitted on" in caplog.text
 
 
 def test_has_pending_bins_single_file(tmp_path):
@@ -408,3 +443,107 @@ def test_train_then_infer(tmp_path):
     h5_files = list(output_dir.glob("*.h5"))
     assert len(h5_files) == 1
     assert "D20220519T124533_IFCB134" in h5_files[0].name
+
+
+def _augmented_checkpoint(tmp_path, num_classes=6):
+    """Write a pipeline checkpoint whose config names an augmented transform.
+
+    Built rather than trained: a model fitted on the tiny fixture set saturates
+    to softmax scores of exactly 1.0, where perturbing the input changes nothing
+    and the regression below cannot fail. Random weights over several classes
+    keep the scores off the rails, which is what makes the check sensitive.
+    """
+    from ifcb_classify.models.factory import get_model
+
+    torch.manual_seed(0)
+    model = get_model("resnet18", num_classes, pretrained=False)
+    path = tmp_path / "model" / "run_best.pt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(
+        {
+            "state_dict": model.state_dict(),
+            "class_names": [f"Class{i}" for i in range(num_classes)],
+            "config": {
+                "model": "resnet18",
+                "pretrained": False,
+                "transform": "dataset_squarepad_augmented",
+                "image_width": 32,
+                "image_height": 32,
+                "seed": 42,
+            },
+        },
+        path,
+    )
+    return path
+
+
+def test_augmented_checkpoint_scores_independent_of_run_position(tmp_path):
+    """Regression: a bin must score the same alone as it does mid-directory.
+
+    Inference used to rebuild the training transform verbatim, so ColorJitter and
+    the random flips ran on every ROI. The transform is built once and reused for
+    the whole run, so the RNG advanced from bin to bin and a bin's scores depended
+    on how many ROIs preceded it. Re-running the same command stayed reproducible
+    -- infer_main re-seeds every invocation -- so this has to compare a single-bin
+    run against a directory run, not two identical ones.
+    """
+    checkpoint = _augmented_checkpoint(tmp_path)
+
+    # Copies of the one fixture under different LIDs, which are only labels. The
+    # target needs a bin scored before it for the RNG to have moved on, and it is
+    # bracketed by an earlier and a later LID so that holds whichever direction
+    # discovery happens to enumerate in — otherwise a change there would leave
+    # the test passing while silently testing nothing.
+    bins_dir = tmp_path / "bins"
+    bins_dir.mkdir()
+    target = "D20220519T124533_IFCB134"
+    for lid in ("D20220519T010101_IFCB134", target, "D20220519T235959_IFCB134"):
+        for ext in (".adc", ".roi", ".hdr"):
+            shutil.copy(BIN_PATH.with_suffix(ext), bins_dir / f"{lid}{ext}")
+
+    from ifcb_classify.infer import infer_main
+
+    def classify(input_path, out_dir):
+        infer_main(InferConfig(
+            input_path=str(input_path),
+            model_checkpoint=str(checkpoint),
+            output_dir=str(out_dir),
+            batch_size=8,
+            device="cpu",
+            overwrite=True,
+        ))
+        with h5py.File(Path(out_dir) / f"{target}_class.h5", "r") as f:
+            return f["output_scores"][:]
+
+    alone = classify(BIN_PATH, tmp_path / "alone")
+    in_directory = classify(bins_dir, tmp_path / "directory")
+
+    # Guard the guard: a saturated model would make this pass for the wrong reason.
+    assert alone.max(axis=1).min() < 0.99, "model too confident for this test to be sensitive"
+    np.testing.assert_array_equal(alone, in_directory)
+
+
+def test_provenance_records_the_transform_actually_used(tmp_path):
+    """The point of the field: it must name what scored the images, not the checkpoint.
+
+    The checkpoint below says ``dataset_squarepad_augmented``; recording that would
+    describe a pipeline that did not run, and would do it in the one place a reader
+    goes to find out how a disputed file was made.
+    """
+    checkpoint = _augmented_checkpoint(tmp_path)
+
+    from ifcb_classify.infer import infer_main
+
+    output_dir = tmp_path / "out"
+    infer_main(InferConfig(
+        input_path=str(BIN_PATH),
+        model_checkpoint=str(checkpoint),
+        output_dir=str(output_dir),
+        batch_size=8,
+        device="cpu",
+    ))
+
+    with h5py.File(output_dir / "D20220519T124533_IFCB134_class.h5", "r") as f:
+        assert f.attrs["transform"] == "dataset_squarepad"
+        assert f.attrs["model_architecture"] == "resnet18"
+        assert f.attrs["checkpoint_sha256"] == checkpoint_sha256(checkpoint)
