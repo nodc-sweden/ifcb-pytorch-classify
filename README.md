@@ -1,4 +1,4 @@
-# SMHI IFCB Classify Pipeline
+# IFCB Classify
 
 [![Test](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/test.yml/badge.svg)](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/test.yml)
 [![Lint](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/lint.yml/badge.svg)](https://github.com/nodc-sweden/ifcb-pytorch-classify/actions/workflows/lint.yml)
