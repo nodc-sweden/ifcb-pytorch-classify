@@ -84,7 +84,7 @@ If you use this software, please cite it. GitHub's "Cite this repository" button
   author    = {Torstensson, Anders},
   title     = {ifcb-classify: a PyTorch pipeline for IFCB plankton image classification},
   year      = {2026},
-  version   = {0.3.0},
+  version   = {0.4.0},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.21775252},
   url       = {https://doi.org/10.5281/zenodo.21775252}
