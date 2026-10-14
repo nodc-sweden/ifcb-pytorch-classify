@@ -33,6 +33,11 @@ def test_infer_parser():
     assert args.command == "infer"
 
 
+def test_infer_parser_accepts_mps_device():
+    args = build_parser().parse_args(["infer", "--config", "infer.yaml", "--device", "mps"])
+    assert args.device == "mps"
+
+
 def test_infer_parser_cli_only():
     parser = build_parser()
     args = parser.parse_args([
@@ -103,6 +108,16 @@ def test_normalise_parser():
     args = parser.parse_args(["normalise", "--data-dir", "/data"])
     assert args.command == "normalise"
     assert args.data_dir == "/data"
+
+
+def _subparsers():
+    return next(a for a in build_parser()._actions if a.dest == "command").choices
+
+
+@pytest.mark.parametrize("command", list(_subparsers()))
+def test_every_option_has_help(command):
+    options = [a for a in _subparsers()[command]._actions if a.dest != "help"]
+    assert [a.dest for a in options if not a.help] == []
 
 
 def test_missing_command_raises():
