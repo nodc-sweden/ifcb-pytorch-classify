@@ -10,7 +10,8 @@ Two things live here:
   command). The same name must be used at train and inference time.
 * :func:`create_training_datasets` — wraps an ``ImageFolder`` (class-per-folder
   layout) and splits it into train/validation ``Subset``s, optionally first
-  filtering out rare classes via :func:`filter_classes`.
+  filtering out rare classes via :func:`filter_classes`. Which image lands on
+  which side is decided in :mod:`ifcb_classify.data.splits`.
 """
 
 import copy
@@ -20,10 +21,11 @@ import shutil
 from pathlib import Path
 
 import torch
-from sklearn.model_selection import train_test_split
 from torchvision import datasets
 from torchvision.transforms import v2 as transforms
 
+from ifcb_classify.config import LEGACY_SPLIT_STRATEGY
+from ifcb_classify.data.splits import group_keys, split_indices
 from ifcb_classify.data.transforms import FullPad, ReflectPad, SquarePad
 
 logger = logging.getLogger(__name__)
@@ -233,6 +235,8 @@ def create_training_datasets(
     seed: int = 42,
     min_class_images: int | None = None,
     manual_include_classes: list[str] | None = None,
+    split_strategy: str = LEGACY_SPLIT_STRATEGY,
+    split_group_by: str | None = None,
 ) -> dict:
     """Build train/validation datasets from a class-per-folder image directory.
 
@@ -240,6 +244,12 @@ def create_training_datasets(
     :func:`filter_classes`). The split is deterministic given ``seed``. Returns a
     dict with ``train`` / ``val`` (``Subset``s), ``class_names`` and
     ``num_classes``.
+
+    ``split_strategy`` and ``split_group_by`` select the split (see
+    :mod:`ifcb_classify.data.splits`). Their defaults here are the legacy random
+    split, not what ``TrainConfig`` defaults to: a caller that passes neither is
+    rebuilding the split of a model that predates the choice, and must get the
+    split that model was trained with.
 
     Augmentation is applied to the training split only. The validation split is
     what the reported metrics, the checkpoint-selection metric and the per-class
@@ -269,7 +279,10 @@ def create_training_datasets(
     # importing the type, and a stale copy of the training transform cannot linger.
     val_dataset.transforms = type(train_dataset.transforms)(val_dataset.transform, val_dataset.target_transform)
 
-    train_idx, val_idx = train_test_split(list(range(len(train_dataset))), test_size=val_split, random_state=seed)
+    groups = group_keys([path for path, _ in train_dataset.samples], split_group_by) if split_group_by else None
+    train_idx, val_idx = split_indices(
+        train_dataset.targets, val_split, seed, split_strategy, groups, train_dataset.classes
+    )
     return {
         "train": torch.utils.data.Subset(train_dataset, train_idx),
         "val": torch.utils.data.Subset(val_dataset, val_idx),

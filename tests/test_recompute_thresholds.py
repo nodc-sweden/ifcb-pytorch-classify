@@ -250,3 +250,35 @@ def test_unsafe_checkpoint_loading_is_opt_in(monkeypatch, refit_fixture):
     with pytest.raises(SystemExit):
         _run(monkeypatch, checkpoint, tmp_path / "refit", "--allow-unsafe")
     assert seen["allow_unsafe"] is True
+
+
+# --- reconstructing the split ------------------------------------------------
+
+
+def _rebuilt_val_indices(refit_fixture, **config_overrides):
+    checkpoint, _, _ = refit_fixture
+    saved = torch.load(checkpoint, weights_only=True)
+    config = {**saved["config"], **config_overrides}
+    data = rt._rebuild_validation_split(config, None, saved["class_names"])
+    return list(data["val"].indices)
+
+
+def test_checkpoint_without_a_split_strategy_rebuilds_the_legacy_split(refit_fixture):
+    """No key means the model predates the strategy, whatever new runs default to.
+
+    Rebuilding any other split would refit thresholds on images it trained on.
+    """
+    from sklearn.model_selection import train_test_split
+
+    _, expected_val = train_test_split(list(range(40)), test_size=0.4, random_state=42)
+
+    assert _rebuilt_val_indices(refit_fixture) == expected_val
+
+
+def test_checkpoint_with_a_split_strategy_rebuilds_that_split(refit_fixture):
+    from ifcb_classify.data.splits import split_indices
+
+    targets = [0] * 20 + [1] * 20
+    _, expected_val = split_indices(targets, val_split=0.4, seed=42, strategy="stratified")
+
+    assert _rebuilt_val_indices(refit_fixture, split_strategy="stratified", split_group_by=None) == expected_val

@@ -12,7 +12,7 @@ should be refit. A thresholds JSON records no version of its own, which is why
 this is the check rather than a version comparison.
 
 The validation split is reconstructed from the checkpoint's own config (same
-``data_dir``, ``val_split``, ``seed`` and class filtering), which is the only way
+``data_dir``, ``val_split``, ``seed``, split strategy and class filtering), which is the only way
 the refit lands on the images the model did not train on. If the training data
 has changed since, the split no longer reproduces and the script refuses to
 guess — see the class-list check below.
@@ -35,6 +35,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 
 from ifcb_classify.checkpoint import load_checkpoint
+from ifcb_classify.config import LEGACY_SPLIT_STRATEGY
 from ifcb_classify.data.datasets import create_training_datasets, eval_transform_name
 from ifcb_classify.device import get_device
 from ifcb_classify.models.factory import get_model
@@ -179,6 +180,11 @@ def _rebuild_validation_split(config: dict, data_dir_override: Path | None, clas
         seed=config.get("seed", 42),
         min_class_images=config.get("min_class_images"),
         manual_include_classes=config.get("manual_include_classes"),
+        # A checkpoint with no strategy predates the choice and used the legacy
+        # split; reading the gap as today's default would hand back a validation
+        # set full of images the model trained on.
+        split_strategy=config.get("split_strategy", LEGACY_SPLIT_STRATEGY),
+        split_group_by=config.get("split_group_by"),
     )
 
     # The split is reproducible only if the dataset is byte-for-byte what training

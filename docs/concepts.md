@@ -82,6 +82,15 @@ deviation; compute them with `ifcb-classify normalise` (see
 and used only to measure how well the model generalises. `0.2` means 20% is used
 for validation.
 
+**Stratified split**: a split that takes the same fraction of every class, so a
+rare class is represented in validation as reliably as a common one.
+
+**Grouped split**: a split that keeps related images together, here all images
+from one bin or one day. Images from the same sample look alike, so a model
+validated on the neighbours of its training images scores better than it will
+on a sample it has never seen. See
+[Training](guides/training.md#the-validation-split).
+
 **Metrics**: numbers summarising model quality.
 
 - **Precision**: of the ROIs the model *called* class X, how many really were X.

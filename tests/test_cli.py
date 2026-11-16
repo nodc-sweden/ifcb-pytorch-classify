@@ -245,3 +245,20 @@ def test_available_models_matches_registry():
     from ifcb_classify.models.registry import MODELS, available_models
 
     assert available_models() == sorted(MODELS)
+
+
+def test_train_parser_split_options():
+    parser = build_parser()
+    args = parser.parse_args([
+        "train", "--config", "train.yaml",
+        "--split-strategy", "stratified",
+        "--split-group-by", "bin",
+    ])
+    assert args.split_strategy == "stratified"
+    assert args.split_group_by == "bin"
+
+
+def test_train_parser_rejects_unknown_split_strategy():
+    parser = build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["train", "--config", "train.yaml", "--split-strategy", "clever"])

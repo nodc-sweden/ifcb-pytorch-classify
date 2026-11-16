@@ -101,6 +101,8 @@ def _train_run(config: TrainConfig, device: torch.device, run_name: str, run_par
         seed=config.seed,
         min_class_images=config.min_class_images,
         manual_include_classes=config.manual_include_classes,
+        split_strategy=config.split_strategy,
+        split_group_by=config.split_group_by,
     )
     class_names = data["class_names"]
     num_classes = data["num_classes"]

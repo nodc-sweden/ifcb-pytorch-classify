@@ -45,6 +45,33 @@ def test_train_one_epoch(tmp_path):
     classes_files = list(tmp_path.glob("*classes.txt"))
     assert len(classes_files) == 1
 
+    # The checkpoint must say how its split was made: a missing key is read as
+    # the legacy random split when the validation set is rebuilt later.
+    saved = torch.load(checkpoints[0], weights_only=True)
+    assert saved["config"]["split_strategy"] == "stratified"
+    assert saved["config"]["split_group_by"] is None
+
+
+class _StopBeforeTrainingError(Exception):
+    pass
+
+
+def test_train_passes_the_configured_split_to_the_datasets(monkeypatch, tmp_path):
+    seen = {}
+
+    def fake_create_training_datasets(**kwargs):
+        seen.update(kwargs)
+        raise _StopBeforeTrainingError
+
+    monkeypatch.setattr("ifcb_classify.train.create_training_datasets", fake_create_training_datasets)
+    config = TrainConfig(data_dir=str(FIXTURES), output_dir=str(tmp_path), split_group_by="bin")
+
+    with pytest.raises(_StopBeforeTrainingError):
+        train_main(config)
+
+    assert seen["split_strategy"] == "stratified"
+    assert seen["split_group_by"] == "bin"
+
 
 # --- auxiliary-classifier outputs -------------------------------------------
 

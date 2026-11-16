@@ -136,3 +136,29 @@ def test_checkpoint_metrics_match_metrics_result():
 
     scalar_fields = {f.name for f in fields(MetricsResult) if f.type is float}
     assert set(VALID_CHECKPOINT_METRICS) == scalar_fields
+
+
+def test_train_config_defaults_to_a_stratified_ungrouped_split():
+    config = TrainConfig()
+    assert config.split_strategy == "stratified"
+    assert config.split_group_by is None
+
+
+def test_train_config_invalid_split_strategy():
+    with pytest.raises(ValueError, match="split_strategy"):
+        TrainConfig(split_strategy="clever")
+
+
+def test_train_config_invalid_split_group_by():
+    with pytest.raises(ValueError, match="split_group_by"):
+        TrainConfig(split_group_by="week")
+
+
+def test_train_config_grouping_requires_stratified():
+    with pytest.raises(ValueError, match="stratified"):
+        TrainConfig(split_strategy="random", split_group_by="bin")
+
+
+@pytest.mark.parametrize("group_by", ["bin", "day"])
+def test_train_config_accepts_grouping(group_by):
+    assert TrainConfig(split_group_by=group_by).split_group_by == group_by

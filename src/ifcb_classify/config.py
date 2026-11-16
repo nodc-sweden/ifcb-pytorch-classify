@@ -44,6 +44,15 @@ VALID_CHECKPOINT_METRICS = (
 )
 
 
+# How the train/validation split is made (see ``data.splits``). A checkpoint
+# whose config has no ``split_strategy`` predates the choice and was split with
+# LEGACY_SPLIT_STRATEGY, whatever new runs default to: its validation set can
+# only be rebuilt by reading the missing key that way.
+VALID_SPLIT_STRATEGIES = ("random", "stratified")
+VALID_SPLIT_GROUPS = ("bin", "day")
+LEGACY_SPLIT_STRATEGY = "random"
+
+
 @dataclass(frozen=True)
 class TrainConfig:
     """Validated settings for a training run (see ``configs/train_default.yaml``).
@@ -51,12 +60,15 @@ class TrainConfig:
     Frozen so a config can't be mutated mid-run; sweeps build new instances
     instead. ``sweep_params`` maps field names to lists of values to grid over;
     ``manual_include_classes`` force-keeps named classes that would otherwise be
-    dropped by ``min_class_images``.
+    dropped by ``min_class_images``. ``split_strategy`` and ``split_group_by``
+    choose how the validation set is drawn (see ``data.splits``).
     """
 
     data_dir: str = "training_data/V1"
     dataset_version: str = "V1"
     val_split: float = 0.2
+    split_strategy: str = "stratified"
+    split_group_by: str | None = None
     image_width: int = 224
     image_height: int = 224
     mean: float | None = None
@@ -84,6 +96,7 @@ class TrainConfig:
         """Validate numeric ranges that would otherwise fail deep inside training."""
         if not (0.0 < self.val_split < 1.0):
             raise ValueError(f"val_split must be between 0 and 1 exclusive, got {self.val_split}")
+        self._validate_split()
         if self.lr <= 0:
             raise ValueError(f"lr must be positive, got {self.lr}")
         if self.batch_size < 1:
@@ -96,6 +109,21 @@ class TrainConfig:
             valid = ", ".join(VALID_CHECKPOINT_METRICS)
             raise ValueError(
                 f"checkpoint_metric must be one of: {valid}; got {self.checkpoint_metric!r}"
+            )
+
+    def _validate_split(self):
+        """Reject split settings that name no known split or contradict each other."""
+        if self.split_strategy not in VALID_SPLIT_STRATEGIES:
+            valid = ", ".join(VALID_SPLIT_STRATEGIES)
+            raise ValueError(f"split_strategy must be one of: {valid}; got {self.split_strategy!r}")
+        if self.split_group_by is None:
+            return
+        if self.split_group_by not in VALID_SPLIT_GROUPS:
+            valid = ", ".join(VALID_SPLIT_GROUPS)
+            raise ValueError(f"split_group_by must be one of: {valid}; got {self.split_group_by!r}")
+        if self.split_strategy != "stratified":
+            raise ValueError(
+                f"split_group_by requires split_strategy 'stratified', got {self.split_strategy!r}"
             )
 
 

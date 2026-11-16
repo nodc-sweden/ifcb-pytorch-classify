@@ -6,6 +6,45 @@ This file records notable changes to the project. It follows
 
 ## [Unreleased]
 
+### Added
+
+- `split_group_by` (`--split-group-by`), which keeps every image from one IFCB
+  bin (`bin`) or one calendar day (`day`) on the same side of the
+  train/validation split. Images from one sample are near-duplicates of each
+  other, and an image-level split lets the model be validated on what it has in
+  effect already seen. The group is read from the `D<date>T<time>_IFCB<n>` prefix
+  of each filename; a file without one is split on its own, and the count is
+  logged.
+
+  Whole groups cannot be divided, so the validation fraction is the nearest
+  `1/k` to `val_split` (0.2 is exact, 0.3 becomes a third) and each class's share
+  is approximate. A class whose images all come from a single group is split by
+  image instead, with a warning naming it, since keeping its only group whole
+  would leave it with nothing to train on or nothing to validate on. Requires
+  `split_strategy: stratified`.
+
+### Changed
+
+- The train/validation split is now stratified by class by default
+  (`split_strategy: stratified`, `--split-strategy`). Each class is shuffled and
+  cut on its own, so every class contributes `val_split` of its images to
+  validation; a class with a single image is used for training only. The split
+  used until now shuffled all images together, which left the share of a small
+  class to chance. Classes that end up with no validation images are named in a
+  warning, because no validation score or threshold can be fitted for them.
+
+  **Validation metrics are not comparable with earlier runs**: the same
+  `val_split` and `seed` now select different images. Set
+  `split_strategy: random` to get the previous split back exactly.
+
+  Existing checkpoints are unaffected. A checkpoint records the strategy it was
+  trained with, and one that records none is read as `random`, so
+  `scripts/recompute_thresholds.py` still rebuilds the validation set the model
+  was trained against. `create_training_datasets` likewise keeps `random` as its
+  own default for callers that pass no strategy.
+
+## [0.4.0] - 2026-08-10
+
 ### Fixed
 
 - Inference no longer applies the training augmentation. A transform name bundles
@@ -247,7 +286,8 @@ when you upgrade, since pyifcb is no longer a dependency.
 - Experiment tracking through CSV (the default), MLflow or Weights & Biases.
 - Automatic device selection: GPU for training, CPU by default for inference.
 
-[Unreleased]: https://github.com/nodc-sweden/ifcb-pytorch-classify/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/nodc-sweden/ifcb-pytorch-classify/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/nodc-sweden/ifcb-pytorch-classify/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nodc-sweden/ifcb-pytorch-classify/compare/v.0.2.0...v0.3.0
 [0.2.0]: https://github.com/nodc-sweden/ifcb-pytorch-classify/compare/v0.1.0...v.0.2.0
 [0.1.0]: https://github.com/nodc-sweden/ifcb-pytorch-classify/releases/tag/v0.1.0

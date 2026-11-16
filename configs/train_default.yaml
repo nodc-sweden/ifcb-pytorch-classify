@@ -1,6 +1,10 @@
 data_dir: training_data/V1
 dataset_version: V1
 val_split: 0.2
+# stratified takes val_split of every class; random reproduces splits made by 0.4.0 and earlier.
+split_strategy: stratified
+# Uncomment to keep all images from one IFCB bin (or one day) on the same side of the split:
+# split_group_by: bin
 
 image_width: 224
 image_height: 224
