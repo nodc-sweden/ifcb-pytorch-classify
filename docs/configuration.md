@@ -22,6 +22,8 @@ New to terms like *epoch*, *learning rate*, or *validation split*? See
 | `data_dir` | `training_data/V1` | Dataset root: one folder per class (`--data-dir`). |
 | `dataset_version` | `V1` | Tag used in the run name and output filenames (`--dataset-version`). |
 | `val_split` | `0.2` | Fraction of data held out for validation (0 to 1, exclusive). |
+| `split_strategy` | `stratified` | How validation images are drawn (`--split-strategy`). `stratified` takes `val_split` of every class; `random` shuffles all images together, as releases up to 0.4.0 did. See [Training → The validation split](guides/training.md#the-validation-split). |
+| `split_group_by` | *(unset)* | Keep all images from one IFCB `bin` or one `day` on the same side of the split (`--split-group-by`). Requires `split_strategy: stratified`. |
 | `image_width` | `224` | Input width the images are resized/padded to. |
 | `image_height` | `224` | Input height the images are resized/padded to. |
 | `mean` | *(unset)* | Dataset pixel mean for normalised transforms; compute with `normalise`. |

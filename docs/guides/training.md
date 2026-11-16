@@ -94,6 +94,47 @@ training_data/V1/
   ...
 ```
 
+## The validation split
+
+Part of the labelled data (`val_split`, 20% by default) is held back from
+training. The best epoch is chosen on it, the reported metrics are measured on
+it, and the per-class thresholds are fitted on it.
+
+By default the split is **stratified**: every class gives up the same fraction
+of its images, so small classes are not left to chance. A class with a single
+image is used for training only. Training logs which classes ended up with no
+validation images, since they get no meaningful score or threshold.
+
+Images from the same IFCB sample resemble each other closely. If some land in
+training and others in validation, the model is tested on near-copies of what it
+learned from and the validation scores come out too high. To keep each sample
+on one side, group the split:
+
+```yaml
+split_strategy: stratified
+split_group_by: bin   # or: day
+```
+
+`bin` keeps each sample whole; `day` keeps each calendar day whole, which also
+separates consecutive samples from the same bloom. The group is read from the
+start of each filename (`D20230314T001205_IFCB134_...`), so the files must keep
+their IFCB names. Expect lower validation scores than with an ungrouped split:
+that is the leak closing, not the model getting worse.
+
+Two things follow from splitting whole groups:
+
+- The validation fraction is the nearest `1/k` to `val_split`: `0.2` is exact,
+  `0.3` becomes a third. Per-class shares are approximate.
+- A class whose images all come from one group is split by image instead, with
+  a warning, because keeping that group whole would leave the class with
+  nothing to train on or nothing to validate on.
+
+!!! note "Comparing with earlier runs"
+    Releases up to 0.4.0 shuffled all images together (`split_strategy: random`).
+    The same `val_split` and `seed` now select different validation images, so
+    scores are not directly comparable. Set `split_strategy: random` to
+    reproduce an earlier split exactly.
+
 ## Labelling images
 
 Building this dataset means sorting IFCB ROIs into per-class folders. This

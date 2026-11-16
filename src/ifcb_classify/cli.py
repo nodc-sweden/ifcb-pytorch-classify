@@ -17,6 +17,8 @@ overrides, so YAML defaults are preserved.
 import argparse
 import logging
 
+from ifcb_classify.config import VALID_SPLIT_GROUPS, VALID_SPLIT_STRATEGIES
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser with one subparser per command."""
@@ -39,6 +41,14 @@ def build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument("--image-width", dest="image_width", type=int)
     train_parser.add_argument("--image-height", dest="image_height", type=int)
     train_parser.add_argument("--val-split", dest="val_split", type=float)
+    train_parser.add_argument(
+        "--split-strategy", dest="split_strategy", choices=VALID_SPLIT_STRATEGIES,
+        help="How validation images are drawn: per class (stratified) or ignoring class (random)",
+    )
+    train_parser.add_argument(
+        "--split-group-by", dest="split_group_by", choices=VALID_SPLIT_GROUPS,
+        help="Keep all images from one IFCB bin or one day on the same side of the split",
+    )
     train_parser.add_argument("--mean", type=float)
     train_parser.add_argument("--std", type=float)
     train_parser.add_argument("--dataset-version", dest="dataset_version")
